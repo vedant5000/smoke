@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.dev/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>LSUIElement</key>
+  <true/>
+  <key>NSCameraUsageDescription</key>
+  <string>Smoke records your camera into your videos.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Smoke records your voice into your videos.</string>
+  <key>NSScreenCaptureUsageDescription</key>
+  <string>Smoke records your screen, a window, or a region you choose.</string>
+</dict>
+</plist>

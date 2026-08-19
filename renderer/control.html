@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Smoke</title>
+<link rel="stylesheet" href="cue.css">
+<style>
+  .brandmark {
+    width: 19px; height: 19px; border-radius: 6px; background: #f7efea;
+    display: grid; place-items: center; flex: none; overflow: hidden;
+  }
+  .brandmark img { width: 14px; height: 14px; display: block; }
+
+  .body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 14px; }
+
+  .section { display: flex; flex-direction: column; gap: 7px; }
+  .section-head { display: flex; align-items: center; gap: 8px; }
+
+  /* source grid */
+  .sources { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .src {
+    position: relative; border: 1px solid var(--pill-edge); background: var(--sunken);
+    border-radius: 10px; overflow: hidden; cursor: pointer; text-align: left;
+    padding: 0; font-family: inherit; transition: border-color .12s, background .12s;
+  }
+  .src:hover { border-color: #2b3040; }
+  .src.on { border-color: var(--accent); background: var(--accent-dim); }
+  /* aspect-ratio is set per card from the real source dimensions, and the image
+     is contained rather than cropped, so the preview is literally the shape and
+     content of what will be recorded */
+  .src .thumb {
+    width: 100%; background: #05060a center/contain no-repeat;
+    display: block; border-bottom: 1px solid var(--pill-edge);
+  }
+  .src .label {
+    display: flex; align-items: center; gap: 5px; padding: 6px 7px;
+    font-size: 10px; font-weight: 600; color: var(--ink-dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .src.on .label { color: var(--ink); }
+  .src .label img { width: 12px; height: 12px; flex: none; border-radius: 2px; }
+  .src .tick {
+    position: absolute; top: 6px; right: 6px; width: 17px; height: 17px; border-radius: 50%;
+    background: var(--accent); display: none; place-items: center;
+  }
+  .src.on .tick { display: grid; }
+  .src .tick svg { width: 9px; height: 9px; stroke: #fff; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+  .region-card {
+    display: flex; align-items: center; gap: 9px; padding: 9px 10px;
+    border: 1px dashed var(--pill-edge); border-radius: 10px; background: var(--sunken);
+    cursor: pointer; font-family: inherit; width: 100%; text-align: left; color: var(--ink-dim);
+  }
+  .region-card:hover { border-color: var(--accent); color: var(--ink); }
+  .region-card.on { border-style: solid; border-color: var(--accent); background: var(--accent-dim); color: var(--ink); }
+  .region-card svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 1.8; fill: none; flex: none; }
+  .region-card .t { font-size: 11px; font-weight: 600; }
+  .region-card .s { font-size: 10px; color: var(--ink-faint); }
+
+  .device-row { display: flex; align-items: center; gap: 7px; }
+  .device-row select { flex: 1; min-width: 0; }
+  .device-row .icon-btn { flex: none; }
+
+  .footer {
+    flex: none; padding: 10px 12px; border-top: var(--hairline);
+    display: flex; align-items: center; gap: 9px; background: rgba(255,255,255,.012);
+  }
+  .footer .btn.lg { flex: 1; }
+
+  .note {
+    font-size: 10px; line-height: 1.45; color: var(--ink-faint);
+    background: var(--sunken); border: 1px solid var(--pill-edge);
+    border-radius: var(--radius-sm); padding: 8px 9px;
+  }
+  .note b { color: var(--ink-dim); font-weight: 600; }
+  .note a { color: var(--accent); cursor: pointer; text-decoration: none; }
+
+  .empty {
+    font-size: 11px; line-height: 1.55; color: var(--ink-dim);
+    padding: 14px 12px; text-align: center;
+    background: var(--sunken); border: 1px solid var(--pill-edge); border-radius: 10px;
+  }
+  .empty b { color: var(--ink); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="panel">
+
+  <div class="bar">
+    <span class="brandmark"><img src="../assets/mark-black.png" alt=""></span>
+    <div class="title">Smoke</div>
+    <span class="chip" id="libchip"><span class="dot"></span><span id="libtext">Bunny</span></span>
+    <div class="spacer"></div>
+    <button class="icon-btn" id="close" title="Close (Esc)">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+
+  <div class="body">
+
+    <!-- what to record -->
+    <div class="section">
+      <div class="section-head">
+        <span class="grouplabel">Record</span>
+        <div class="spacer"></div>
+      </div>
+      <div class="seg" id="mode" style="width:100%">
+        <button class="on" data-mode="both" style="flex:1;justify-content:center">Screen + Cam</button>
+        <button data-mode="screen" style="flex:1;justify-content:center">Screen</button>
+        <button data-mode="camera" style="flex:1;justify-content:center">Camera</button>
+      </div>
+    </div>
+
+    <!-- source -->
+    <div class="section" id="sourceSection">
+      <div class="section-head">
+        <span class="grouplabel">Source</span>
+        <div class="spacer"></div>
+        <span class="meta" id="srccount"></span>
+        <button class="icon-btn" id="refresh" title="Refresh sources">
+          <svg viewBox="0 0 24 24"><path d="M20 11A8 8 0 0 0 6.3 6.3L4 8.5M4 13a8 8 0 0 0 13.7 4.7L20 15.5"/><path d="M4 4v4.5h4.5M20 20v-4.5h-4.5"/></svg>
+        </button>
+      </div>
+
+      <button class="region-card" id="regionBtn">
+        <svg viewBox="0 0 24 24"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>
+        <div>
+          <div class="t" id="regionTitle">Select a region</div>
+          <div class="s" id="regionSub">Drag a box anywhere on screen</div>
+        </div>
+      </button>
+
+      <div class="seg" style="width:100%" id="srcFilter">
+        <button class="on" data-filter="screen" style="flex:1;justify-content:center">Screens</button>
+        <button data-filter="window" style="flex:1;justify-content:center">Windows</button>
+      </div>
+
+      <div class="sources" id="sources"></div>
+      <div class="empty hide" id="srcEmpty">No sources found</div>
+    </div>
+
+    <!-- devices -->
+    <div class="section">
+      <span class="grouplabel">Camera</span>
+      <div class="device-row">
+        <select id="cameraSel"><option value="">Loading…</option></select>
+        <button class="icon-btn on" id="camToggle" title="Camera on or off">
+          <svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        </button>
+      </div>
+
+      <span class="grouplabel" style="margin-top:4px">Audio</span>
+      <div class="device-row">
+        <select id="micSel"><option value="">Loading…</option></select>
+        <button class="icon-btn on" id="micToggle" title="Microphone on or off">
+          <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 19v3"/></svg>
+        </button>
+      </div>
+      <div class="device-row">
+        <button class="btn ghost on" id="sysAudio" style="flex:1;justify-content:flex-start">
+          <svg viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          System audio
+        </button>
+      </div>
+    </div>
+
+    <!-- reading from a script -->
+    <div class="section">
+      <span class="grouplabel">While recording</span>
+      <div class="device-row">
+        <button class="btn ghost" id="hideCursor" style="flex:1;justify-content:flex-start">
+          <svg viewBox="0 0 24 24"><path d="M5 3l6 16 2-6 6-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M3 3l18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Hide my cursor
+        </button>
+      </div>
+      <div class="device-row">
+        <button class="btn ghost" id="teleprompter" style="flex:1;justify-content:flex-start">
+          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 9h10M7 13h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Open Cue teleprompter
+        </button>
+      </div>
+      <div class="note" id="cueNote">
+        Cue's teleprompter is already hidden from any capture. Turn on <b>Hide my cursor</b> and you can scroll your script mid take without the recording seeing the panel or the pointer.
+      </div>
+    </div>
+
+    <!-- how the camera is handled -->
+    <div class="section">
+      <span class="grouplabel">Camera handling</span>
+      <div class="seg" style="width:100%" id="camMode">
+        <button class="on" data-cammode="studio" style="flex:1;justify-content:center">Editable later</button>
+        <button data-cammode="burn" style="flex:1;justify-content:center">Burn in live</button>
+      </div>
+      <div class="note" id="camModeNote">
+        <b>Editable later.</b> The bubble stays on your screen but is hidden from the capture, so in Studio you can move it, resize it or switch layout after the fact.
+      </div>
+    </div>
+
+    <div class="note hide" id="permNote"></div>
+
+  </div>
+
+  <div class="footer">
+    <select id="countdown" title="Countdown before recording" style="width:74px">
+      <option value="0">No delay</option>
+      <option value="3" selected>3s</option>
+      <option value="5">5s</option>
+      <option value="10">10s</option>
+    </select>
+    <button class="btn lg primary" id="start">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></svg>
+      Start recording
+    </button>
+  </div>
+
+</div>
+
+<script src="engine.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+const state = {
+  mode: 'both',           // both | screen | camera
+  camMode: 'studio',      // studio | burn
+  sourceId: null,
+  sourceKind: 'screen',
+  sourceMeta: null,
+  filter: 'screen',
+  region: null,           // {x,y,w,h,displayId,scale}
+  cameraId: '',
+  micId: 'default',
+  camOn: true,
+  micOn: true,
+  sysAudio: true,
+  countdown: 3,
+  hideCursor: false,
+  sources: [],
+};
+
+/* ---------- boot ---------- */
+async function boot() {
+  const info = await cue.info();
+  const s = info.settings || {};
+  state.camMode = s.mode || 'studio';
+  state.countdown = s.countdown ?? 3;
+  state.sysAudio = s.systemAudio !== false;
+  state.micOn = s.micEnabled !== false;
+  state.camOn = s.cameraEnabled !== false;
+  state.hideCursor = s.hideCursor === true;
+
+  $('#hideCursor').classList.toggle('on', state.hideCursor);
+  $('#countdown').value = String(state.countdown);
+  syncSeg('#camMode', 'cammode', state.camMode);
+  $('#sysAudio').classList.toggle('on', state.sysAudio);
+  $('#micToggle').classList.toggle('on', state.micOn);
+  $('#camToggle').classList.toggle('on', state.camOn);
+
+  const chip = $('#libchip');
+  if (info.bunnyConfigured) {
+    chip.className = 'chip good';
+    $('#libtext').textContent = 'Library ' + info.libraryId;
+  } else {
+    chip.className = 'chip';
+    $('#libtext').textContent = 'Bunny not set up';
+  }
+
+  await loadDevices();
+  await loadSources();
+  await checkPerms();
+  applyMode();
+}
+
+async function checkPerms() {
+  const p = await cue.checkPermissions();
+  const missing = [];
+  if (p.screen !== 'granted') missing.push('Screen Recording');
+  if (state.camOn && p.camera !== 'granted') missing.push('Camera');
+  if (state.micOn && p.microphone !== 'granted') missing.push('Microphone');
+  const note = $('#permNote');
+  if (!missing.length) { note.classList.add('hide'); return; }
+  note.classList.remove('hide');
+  note.innerHTML = `<b>Permission needed:</b> ${missing.join(', ')}. ` +
+    `macOS asks once per app. <a id="permFix">Open System Settings</a>`;
+  $('#permFix').onclick = async () => {
+    if (p.camera !== 'granted') await cue.requestPermission('camera');
+    if (p.microphone !== 'granted') await cue.requestPermission('microphone');
+    if (p.screen !== 'granted') await cue.requestPermission('screen');
+  };
+}
+
+/* ---------- devices ---------- */
+async function loadDevices() {
+  // labels only populate once permission has been granted at least once
+  try { (await navigator.mediaDevices.getUserMedia({ audio: true, video: true })).getTracks().forEach((t) => t.stop()); }
+  catch (_) {}
+
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const cams = devices.filter((d) => d.kind === 'videoinput');
+  const mics = devices.filter((d) => d.kind === 'audioinput');
+
+  const camSel = $('#cameraSel');
+  camSel.innerHTML = cams.length
+    ? cams.map((d, i) => `<option value="${d.deviceId}">${d.label || 'Camera ' + (i + 1)}</option>`).join('')
+    : '<option value="">No camera found</option>';
+  state.cameraId = camSel.value;
+
+  const micSel = $('#micSel');
+  micSel.innerHTML = mics.length
+    ? mics.map((d, i) => `<option value="${d.deviceId}">${d.label || 'Microphone ' + (i + 1)}</option>`).join('')
+    : '<option value="">No microphone found</option>';
+  state.micId = micSel.value || 'default';
+}
+
+/* ---------- sources ---------- */
+async function loadSources() {
+  let list = [];
+  try {
+    list = await cue.listSources();
+  } catch (e) {
+    console.warn('[smoke] could not list sources:', e.message);
+  }
+  state.sources = list;
+  renderSources();
+  if (!list.length) await explainNoSources();
+}
+
+/* An empty source list nearly always means macOS has not granted Screen
+   Recording to this build yet. Say so plainly instead of letting the user hit
+   Start and get a message about picking a source that does not exist. */
+async function explainNoSources() {
+  const p = await cue.checkPermissions();
+  const box = $('#srcEmpty');
+  box.classList.remove('hide');
+  if (p.screen === 'granted') {
+    box.innerHTML = '<b>No screens or windows found.</b><br>Try Refresh. If it stays empty, restart Smoke.';
+    return;
+  }
+  box.innerHTML =
+    '<b>Smoke needs Screen Recording permission.</b><br>' +
+    'macOS asks for this per app, and Smoke is new to it.<br>' +
+    '<span class="row" style="justify-content:center;gap:6px;margin-top:9px">' +
+    '<button class="btn" id="openPrefs">Open System Settings</button>' +
+    '<button class="btn primary" id="relaunch">Quit and reopen</button></span>' +
+    '<div style="margin-top:7px">Turn Smoke on in the list, then reopen it. The permission only takes effect after a restart.</div>';
+  const prefs = $('#openPrefs');
+  const relaunch = $('#relaunch');
+  if (prefs) prefs.onclick = () => cue.requestPermission('screen');
+  if (relaunch) relaunch.onclick = () => cue.relaunch();
+}
+
+function renderSources() {
+  const list = state.sources.filter((s) => s.kind === state.filter);
+  $('#srccount').textContent = list.length ? `${list.length}` : '';
+  const wrap = $('#sources');
+  $('#srcEmpty').classList.toggle('hide', list.length > 0);
+
+  wrap.innerHTML = list.map((s) => {
+    // real aspect of the source, so a 16:9 display never previews as 16:10
+    const ar = (s.width && s.height) ? `${s.width}/${s.height}`
+             : (s.thumbW && s.thumbH) ? `${s.thumbW}/${s.thumbH}`
+             : '16/9';
+    return `
+    <button class="src ${state.sourceId === s.id && !state.region ? 'on' : ''}" data-id="${s.id}">
+      <span class="thumb" style="aspect-ratio:${ar};${s.thumbnail ? `background-image:url(${s.thumbnail})` : ''}"></span>
+      <span class="label">
+        ${s.appIcon ? `<img src="${s.appIcon}" alt="">` : ''}
+        ${escapeHtml(s.name)}
+      </span>
+      <span class="tick"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+    </button>`;
+  }).join('');
+
+  wrap.querySelectorAll('.src').forEach((el) => {
+    el.onclick = () => {
+      state.sourceId = el.dataset.id;
+      state.sourceMeta = state.sources.find((x) => x.id === el.dataset.id);
+      state.sourceKind = state.sourceMeta.kind;
+      state.region = null;
+      updateRegionCard();
+      renderSources();
+      updateStartState();
+    };
+  });
+
+  // auto-select the first screen so Start always works
+  if (!state.sourceId && list.length) {
+    state.sourceId = list[0].id;
+    state.sourceMeta = list[0];
+    state.sourceKind = list[0].kind;
+    renderSources();
+  }
+  updateStartState();
+}
+
+/* Start is only meaningful when there is something to capture. Leaving it
+   enabled with nothing selected is how you end up with an error dialog
+   instead of an explanation. */
+function updateStartState() {
+  const cameraOnly = state.mode === 'camera';
+  const ready = cameraOnly ? Boolean(state.cameraId) : Boolean(state.sourceId);
+  const btn = $('#start');
+  btn.disabled = !ready;
+  btn.title = ready ? ''
+    : cameraOnly ? 'No camera available'
+    : 'Nothing to record yet. Pick a screen, a window, or a region.';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ---------- region ---------- */
+function updateRegionCard() {
+  const card = $('#regionBtn');
+  if (state.region) {
+    card.classList.add('on');
+    $('#regionTitle').textContent = `Region ${Math.round(state.region.w)} x ${Math.round(state.region.h)}`;
+    $('#regionSub').textContent = 'Click to draw a different box';
+  } else {
+    card.classList.remove('on');
+    $('#regionTitle').textContent = 'Select a region';
+    $('#regionSub').textContent = 'Drag a box anywhere on screen';
+  }
+}
+
+$('#regionBtn').onclick = async () => {
+  cue.hideControl();
+  const rect = await cue.pickRegion();
+  cue.showControl();
+  if (rect) {
+    state.region = rect;
+    // a region always captures its own display
+    const src = state.sources.find((s) => s.kind === 'screen' && String(s.displayId) === String(rect.displayId));
+    if (src) { state.sourceId = src.id; state.sourceMeta = src; state.sourceKind = 'screen'; }
+  }
+  updateRegionCard();
+  renderSources();
+  updateStartState();
+};
+
+/* ---------- segmented controls ---------- */
+function syncSeg(sel, key, value) {
+  $$(`${sel} button`).forEach((b) => b.classList.toggle('on', b.dataset[key] === value));
+}
+
+$$('#mode button').forEach((b) => b.onclick = () => {
+  state.mode = b.dataset.mode;
+  syncSeg('#mode', 'mode', state.mode);
+  applyMode();
+});
+
+$$('#camMode button').forEach((b) => b.onclick = () => {
+  state.camMode = b.dataset.cammode;
+  syncSeg('#camMode', 'cammode', state.camMode);
+  $('#camModeNote').innerHTML = state.camMode === 'studio'
+    ? '<b>Editable later.</b> The bubble stays on your screen but is hidden from the capture, so in Studio you can move it, resize it or switch layout after the fact.'
+    : '<b>Burn in live.</b> The bubble is captured exactly where you drag it, Loom style. Faster to publish, but its position is fixed once you stop.';
+  cue.saveSettings({ mode: state.camMode });
+  refreshBubble();
+});
+
+$$('#srcFilter button').forEach((b) => b.onclick = () => {
+  state.filter = b.dataset.filter;
+  syncSeg('#srcFilter', 'filter', state.filter);
+  renderSources();
+});
+
+function applyMode() {
+  const cameraOnly = state.mode === 'camera';
+  $('#sourceSection').classList.toggle('hide', cameraOnly);
+  state.camOn = state.mode !== 'screen';
+  $('#camToggle').classList.toggle('on', state.camOn);
+  refreshBubble();
+  updateStartState();
+}
+
+/* ---------- toggles ---------- */
+$('#camToggle').onclick = () => {
+  state.camOn = !state.camOn;
+  $('#camToggle').classList.toggle('on', state.camOn);
+  cue.saveSettings({ cameraEnabled: state.camOn });
+  refreshBubble();
+};
+$('#micToggle').onclick = () => {
+  state.micOn = !state.micOn;
+  $('#micToggle').classList.toggle('on', state.micOn);
+  cue.saveSettings({ micEnabled: state.micOn });
+};
+$('#sysAudio').onclick = () => {
+  state.sysAudio = !state.sysAudio;
+  $('#sysAudio').classList.toggle('on', state.sysAudio);
+  cue.saveSettings({ systemAudio: state.sysAudio });
+};
+$('#hideCursor').onclick = () => {
+  state.hideCursor = !state.hideCursor;
+  $('#hideCursor').classList.toggle('on', state.hideCursor);
+  cue.saveSettings({ hideCursor: state.hideCursor });
+};
+$('#teleprompter').onclick = async () => {
+  const r = await cue.openTeleprompter();
+  const btn = $('#teleprompter');
+  if (r && r.ok) {
+    btn.classList.add('on');
+    setTimeout(() => btn.classList.remove('on'), 1200);
+  } else {
+    $('#cueNote').innerHTML = '<b>Cue is not running.</b> Launch Cue from your menubar (or /Applications/Cue.app) and try again. Smoke does not need it, but the teleprompter lives there.';
+  }
+};
+$('#cameraSel').onchange = (e) => { state.cameraId = e.target.value; cue.saveSettings({ cameraId: state.cameraId }); refreshBubble(); };
+$('#micSel').onchange = (e) => { state.micId = e.target.value; cue.saveSettings({ micId: state.micId }); };
+$('#countdown').onchange = (e) => { state.countdown = Number(e.target.value); cue.saveSettings({ countdown: state.countdown }); };
+$('#refresh').onclick = () => loadSources();
+$('#close').onclick = () => cue.closeWindow();
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !engine.recording) cue.closeWindow(); });
+
+/* ---------- camera bubble preview ---------- */
+let bubbleTimer = null;
+function refreshBubble() {
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(async () => {
+    /* The panel keeps running while hidden so it can drive the recorder, but
+       the bubble should only be on screen while you are setting up a take or
+       actually recording. Otherwise it floats there the whole time the app is
+       open, and it holds the camera. */
+    const visible = document.visibilityState === 'visible';
+    if (state.camOn && state.cameraId && (visible || engine.recording)) {
+      await cue.camShow({ size: 220, shape: 'circle', deviceId: state.cameraId, mode: state.camMode });
+    } else {
+      await cue.camHide();
+    }
+  }, 120);
+}
+document.addEventListener('visibilitychange', refreshBubble);
+
+/* ---------- start ---------- */
+$('#start').onclick = async () => {
+  if (engine.recording) return;
+  const btn = $('#start');
+  btn.disabled = true;
+  try {
+    await engine.start(state);
+  } catch (e) {
+    btn.disabled = false;
+    alert('Could not start recording:\n\n' + (e && e.message ? e.message : e));
+    cue.showControl();
+    return;
+  }
+  btn.disabled = false;
+};
+
+cue.onControlShown(() => { loadSources(); checkPerms(); });
+cue.onRecAction((action) => engine.handleAction(action));
+
+boot();
+</script>
+</body>
+</html>

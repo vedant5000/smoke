@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Set up Smoke</title>
+<link rel="stylesheet" href="cue.css">
+<style>
+  .brandmark {
+    width: 19px; height: 19px; border-radius: 6px; background: #f7efea;
+    display: grid; place-items: center; flex: none; overflow: hidden;
+  }
+  .brandmark img { width: 14px; height: 14px; display: block; }
+
+  .body { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+
+  .lede { display: flex; flex-direction: column; gap: 6px; }
+  .lede h1 { font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
+  .lede p  { font-size: 11.5px; line-height: 1.55; color: var(--ink-dim); }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 10.5px; font-weight: 600; color: var(--ink-dim); letter-spacing: .02em; }
+  .field .hint { font-size: 10px; line-height: 1.45; color: var(--ink-faint); }
+
+  /* cue.css sets user-select:none on everything, which would make these
+     unselectable and impossible to correct a paste in */
+  input[type="text"], input[type="password"] {
+    width: 100%; height: 34px; padding: 0 10px;
+    background: var(--sunken); color: var(--ink);
+    border: 1px solid var(--pill-edge); border-radius: var(--radius-sm);
+    font-family: inherit; font-size: 12px;
+    user-select: text; cursor: text; outline: none;
+  }
+  input:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--ink-faint); }
+  input.bad { border-color: var(--rec); }
+
+  .key-wrap { position: relative; }
+  .key-wrap input { padding-right: 62px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+  .key-wrap .reveal {
+    position: absolute; right: 5px; top: 5px; height: 24px; padding: 0 8px;
+    background: var(--raised); border: 1px solid var(--pill-edge); border-radius: var(--radius-xs);
+    color: var(--ink-dim); font-family: inherit; font-size: 10px; font-weight: 600; cursor: pointer;
+  }
+  .key-wrap .reveal:hover { color: var(--ink); background: var(--raised-hi); }
+
+  .steps {
+    font-size: 10.5px; line-height: 1.6; color: var(--ink-faint);
+    background: var(--sunken); border: 1px solid var(--pill-edge);
+    border-radius: var(--radius-sm); padding: 10px 11px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .steps b { color: var(--ink-dim); font-weight: 600; }
+  .steps a { color: var(--accent); cursor: pointer; text-decoration: none; }
+  .steps a:hover { text-decoration: underline; }
+  .steps ol { margin: 2px 0 0 14px; display: flex; flex-direction: column; gap: 3px; }
+
+  /* status: never colour alone, every state carries an icon and words */
+  .status {
+    display: none; align-items: flex-start; gap: 7px;
+    font-size: 11px; line-height: 1.5; padding: 9px 10px;
+    border-radius: var(--radius-sm); border: 1px solid transparent;
+  }
+  .status.show { display: flex; }
+  .status svg { width: 13px; height: 13px; flex: none; margin-top: 1px; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .status.err  { background: var(--rec-dim); border-color: rgba(255,90,95,.4); color: #ffb9bb; }
+  .status.err  svg { stroke: var(--rec); }
+  .status.ok   { background: rgba(53,214,155,.14); border-color: rgba(53,214,155,.4); color: #9ff0d0; }
+  .status.ok   svg { stroke: var(--good); }
+  .status.busy { background: var(--raised); border-color: var(--pill-edge); color: var(--ink-dim); }
+  .status.busy svg { stroke: var(--ink-dim); animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .footer {
+    flex: none; padding: 12px 18px; border-top: var(--hairline);
+    display: flex; align-items: center; gap: 9px; background: rgba(255,255,255,.012);
+  }
+  .footer .btn.lg { flex: 1; }
+  .footer .muted { font-size: 10px; color: var(--ink-faint); }
+
+  .adv { border-top: var(--hairline); padding-top: 12px; }
+  .adv summary {
+    font-size: 10.5px; font-weight: 600; color: var(--ink-faint);
+    cursor: pointer; list-style: none; user-select: none;
+  }
+  .adv summary::-webkit-details-marker { display: none; }
+  .adv summary:hover { color: var(--ink-dim); }
+  .adv summary::before { content: "\25B8  "; }
+  .adv[open] summary::before { content: "\25BE  "; }
+  .adv .field { margin-top: 9px; }
+</style>
+</head>
+<body>
+<div class="panel">
+
+  <div class="bar">
+    <span class="brandmark"><img src="../assets/mark-black.png" alt=""></span>
+    <div class="title">Smoke</div>
+    <div class="spacer"></div>
+    <button class="icon-btn" id="close" title="Close">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+
+  <div class="body">
+
+    <div class="lede">
+      <h1 id="lede-title">Connect Your Bunny Library</h1>
+      <p id="lede-copy">
+        Smoke uploads every recording to your own Bunny.net Stream library and hands you the share
+        link. Paste the two values below once and it is set up for good.
+      </p>
+    </div>
+
+    <div class="field">
+      <label for="lib">Video library ID</label>
+      <input type="text" id="lib" placeholder="717099" autocomplete="off" spellcheck="false" inputmode="numeric">
+    </div>
+
+    <div class="field">
+      <label for="key">Stream API key</label>
+      <div class="key-wrap">
+        <input type="password" id="key" placeholder="Paste the library's API key" autocomplete="off" spellcheck="false">
+        <button class="reveal" id="reveal" type="button">Show</button>
+      </div>
+      <div class="hint">This is the library's own key, not your account API key.</div>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="steps">
+      <b>Where to find them</b>
+      <ol>
+        <li>Open <a id="dash">dash.bunny.net</a> and go to Stream.</li>
+        <li>Pick a video library, or create one if you have none.</li>
+        <li>Open its <b>API</b> tab. Both values are on that page.</li>
+      </ol>
+    </div>
+
+    <details class="adv">
+      <summary>Advanced</summary>
+      <div class="field">
+        <label for="cdn">CDN hostname (optional)</label>
+        <input type="text" id="cdn" placeholder="Found automatically" autocomplete="off" spellcheck="false">
+        <div class="hint">
+          Only needed for direct MP4 and thumbnail links. Smoke reads it from your library by itself,
+          so leave this blank unless you want to force a specific pull zone.
+        </div>
+      </div>
+    </details>
+
+  </div>
+
+  <div class="footer">
+    <button class="btn lg primary" id="save">Connect</button>
+  </div>
+
+</div>
+
+<script src="setup.js"></script>
+</body>
+</html>

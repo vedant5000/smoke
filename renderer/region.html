@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Smoke - select region</title>
+<link rel="stylesheet" href="cue.css">
+<style>
+  html, body { background: transparent; cursor: crosshair; }
+  #veil { position: fixed; inset: 0; background: rgba(8, 9, 11, .42); }
+
+  /* the selection punches a hole through the veil with a huge outer shadow */
+  #sel {
+    position: fixed; display: none;
+    border: 1px solid var(--accent);
+    box-shadow: 0 0 0 9999px rgba(8, 9, 11, .42), 0 0 0 1px rgba(0, 0, 0, .5) inset;
+    background: transparent;
+  }
+  #sel.live { display: block; }
+
+  /* thirds guides inside the selection */
+  #sel .g { position: absolute; background: rgba(109, 123, 255, .22); }
+  #sel .g.v { top: 0; bottom: 0; width: 1px; }
+  #sel .g.h { left: 0; right: 0; height: 1px; }
+
+  .handle {
+    position: absolute; width: 9px; height: 9px; background: var(--accent);
+    border: 1.5px solid #fff; border-radius: 2px;
+  }
+  .handle.tl { left: -5px; top: -5px; } .handle.tr { right: -5px; top: -5px; }
+  .handle.bl { left: -5px; bottom: -5px; } .handle.br { right: -5px; bottom: -5px; }
+
+  /* crosshair guides before the drag starts */
+  .cross { position: fixed; background: rgba(109, 123, 255, .35); pointer-events: none; }
+  .cross.v { top: 0; bottom: 0; width: 1px; }
+  .cross.h { left: 0; right: 0; height: 1px; }
+
+  #dims {
+    position: fixed; display: none; padding: 4px 9px;
+    background: var(--pill-bg); border: 1px solid var(--pill-edge); border-radius: var(--radius-sm);
+    font-size: 11px; font-weight: 600; color: var(--ink);
+    font-variant-numeric: tabular-nums; box-shadow: 0 8px 24px -8px rgba(0,0,0,.9);
+    pointer-events: none; white-space: nowrap;
+  }
+  #dims.live { display: block; }
+
+  #actions {
+    position: fixed; display: none; gap: 7px; align-items: center;
+    padding: 7px; background: var(--pill-bg); border: 1px solid var(--pill-edge);
+    border-radius: var(--radius-md); box-shadow: var(--shadow);
+  }
+  #actions.live { display: flex; }
+
+  #hint {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    padding: 9px 14px; background: var(--pill-bg); border: 1px solid var(--pill-edge);
+    border-radius: 999px; box-shadow: var(--shadow);
+    font-size: 11.5px; font-weight: 500; color: var(--ink-dim);
+    display: flex; align-items: center; gap: 10px; white-space: nowrap;
+  }
+  #hint b { color: var(--ink); font-weight: 600; }
+  kbd {
+    font-family: inherit; font-size: 10px; font-weight: 700; color: var(--ink);
+    background: var(--raised); border: 1px solid var(--pill-edge);
+    border-radius: 4px; padding: 2px 5px;
+  }
+</style>
+</head>
+<body>
+  <div id="veil"></div>
+  <div class="cross v" id="crossV"></div>
+  <div class="cross h" id="crossH"></div>
+
+  <div id="sel">
+    <div class="g v" style="left:33.33%"></div>
+    <div class="g v" style="left:66.66%"></div>
+    <div class="g h" style="top:33.33%"></div>
+    <div class="g h" style="top:66.66%"></div>
+    <div class="handle tl"></div><div class="handle tr"></div>
+    <div class="handle bl"></div><div class="handle br"></div>
+  </div>
+
+  <div id="dims">0 x 0</div>
+
+  <div id="actions">
+    <button class="btn ghost" id="cancel">Cancel</button>
+    <button class="btn primary" id="confirm">
+      <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Use region
+    </button>
+  </div>
+
+  <div id="hint" style="top:36px">
+    <b>Drag a box</b> to pick the area
+    <span class="faint">or</span> <kbd>Esc</kbd> to cancel
+  </div>
+
+<script>
+const q = new URLSearchParams(location.search);
+const DISPLAY = {
+  id: q.get('displayId'),
+  w: Number(q.get('dw')),
+  h: Number(q.get('dh')),
+  scale: Number(q.get('scale')) || 1,
+};
+
+const sel = document.getElementById('sel');
+const dims = document.getElementById('dims');
+const actions = document.getElementById('actions');
+const hint = document.getElementById('hint');
+const crossV = document.getElementById('crossV');
+const crossH = document.getElementById('crossH');
+
+let dragging = false;
+let start = null;
+let rect = null;
+const MIN = 16;
+
+function setCross(on, x, y) {
+  crossV.style.display = on ? 'block' : 'none';
+  crossH.style.display = on ? 'block' : 'none';
+  if (on) { crossV.style.left = x + 'px'; crossH.style.top = y + 'px'; }
+}
+
+function draw(r) {
+  sel.classList.add('live');
+  sel.style.left = r.x + 'px';
+  sel.style.top = r.y + 'px';
+  sel.style.width = r.w + 'px';
+  sel.style.height = r.h + 'px';
+
+  // dimensions in real captured pixels, which is what people expect to read
+  const px = Math.round(r.w * DISPLAY.scale);
+  const py = Math.round(r.h * DISPLAY.scale);
+  dims.classList.add('live');
+  dims.textContent = `${px} x ${py}`;
+  const dy = r.y > 34 ? r.y - 28 : r.y + r.h + 10;
+  dims.style.left = Math.min(Math.max(4, r.x), DISPLAY.w - 110) + 'px';
+  dims.style.top = dy + 'px';
+}
+
+function showActions(r) {
+  actions.classList.add('live');
+  const aw = 190, ah = 46;
+  let ax = r.x + r.w - aw;
+  let ay = r.y + r.h + 10;
+  if (ay + ah > DISPLAY.h - 8) ay = Math.max(8, r.y - ah - 10);
+  actions.style.left = Math.max(8, Math.min(ax, DISPLAY.w - aw - 8)) + 'px';
+  actions.style.top = ay + 'px';
+}
+
+function normalise(a, b) {
+  return {
+    x: Math.min(a.x, b.x),
+    y: Math.min(a.y, b.y),
+    w: Math.abs(b.x - a.x),
+    h: Math.abs(b.y - a.y),
+  };
+}
+
+window.addEventListener('mousemove', (e) => {
+  if (!dragging) { if (!rect) setCross(true, e.clientX, e.clientY); return; }
+  rect = normalise(start, { x: e.clientX, y: e.clientY });
+  draw(rect);
+});
+
+window.addEventListener('mousedown', (e) => {
+  if (e.target.closest('#actions')) return;
+  dragging = true;
+  rect = null;
+  start = { x: e.clientX, y: e.clientY };
+  setCross(false);
+  actions.classList.remove('live');
+  hint.style.display = 'none';
+  // any other display's overlay should clear itself
+  sel.classList.remove('live');
+});
+
+window.addEventListener('mouseup', () => {
+  if (!dragging) return;
+  dragging = false;
+  if (!rect || rect.w < MIN || rect.h < MIN) {
+    rect = null;
+    sel.classList.remove('live');
+    dims.classList.remove('live');
+    hint.style.display = 'flex';
+    return;
+  }
+  // snap to even pixel dimensions so the encoder never has to pad
+  rect.w = Math.max(MIN, Math.round(rect.w / 2) * 2);
+  rect.h = Math.max(MIN, Math.round(rect.h / 2) * 2);
+  draw(rect);
+  showActions(rect);
+});
+
+function confirm() {
+  if (!rect) return;
+  cue.regionResult({
+    displayId: DISPLAY.id,
+    scale: DISPLAY.scale,
+    x: rect.x, y: rect.y, w: rect.w, h: rect.h,
+    // fractions of the display, resolved against the real video size later
+    nx: rect.x / DISPLAY.w,
+    ny: rect.y / DISPLAY.h,
+    nw: rect.w / DISPLAY.w,
+    nh: rect.h / DISPLAY.h,
+  });
+}
+
+document.getElementById('confirm').onclick = confirm;
+document.getElementById('cancel').onclick = () => cue.regionCancel();
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') cue.regionCancel();
+  if (e.key === 'Enter') confirm();
+});
+
+setCross(true, DISPLAY.w / 2, DISPLAY.h / 2);
+window.focus();
+</script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Smoke</title>
+<style>
+  :root{
+    --pill-bg:#08090b; --pill-edge:#1c1f26; --sunken:#0f1116; --raised:#14161b; --raised-hi:#1c1f28;
+    --ink:#f4f6fb; --ink-dim:#9aa3b2; --ink-faint:#5b6474;
+    --accent:#6d7bff; --accent-dim:rgba(109,123,255,.18); --rec:#ff5a5f; --good:#35d69b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    width:300px; background:var(--pill-bg); color:var(--ink);
+    font-family:"Inter","SF Pro Display",-apple-system,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; user-select:none;
+  }
+  .bar{display:flex;align-items:center;gap:8px;padding:11px 12px;border-bottom:1px solid var(--pill-edge)}
+  .mark{width:19px;height:19px;border-radius:6px;background:var(--accent);display:grid;place-items:center}
+  .mark svg{width:10px;height:10px;fill:#fff}
+  .title{font-size:12px;font-weight:700}
+  .spacer{flex:1}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:700;letter-spacing:.04em;
+        padding:3px 7px;border-radius:999px;border:1px solid var(--pill-edge);background:var(--sunken);color:var(--ink-dim)}
+  .chip.good{color:var(--good);border-color:rgba(53,214,155,.3)}
+  .chip.rec{color:var(--rec);border-color:rgba(255,90,95,.35);background:rgba(255,90,95,.16)}
+  .chip .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+
+  .body{padding:12px;display:flex;flex-direction:column;gap:11px}
+  .grouplabel{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);font-weight:700}
+
+  .tab-card{display:flex;align-items:center;gap:8px;padding:9px;background:var(--sunken);
+            border:1px solid var(--pill-edge);border-radius:9px}
+  .tab-card img{width:16px;height:16px;flex:none;border-radius:3px}
+  .tab-card .t{font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .btn{font-family:inherit;font-size:12px;font-weight:600;color:var(--ink);background:var(--raised);
+       border:1px solid var(--pill-edge);border-radius:8px;height:34px;padding:0 12px;cursor:pointer;
+       display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%}
+  .btn:hover{background:var(--raised-hi)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.danger{background:var(--rec);border-color:var(--rec);color:#fff}
+  .btn[disabled]{opacity:.4;cursor:not-allowed}
+  .btn svg{width:13px;height:13px;fill:currentColor}
+  .btn.toggle{justify-content:flex-start;background:transparent}
+  .btn.toggle.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  .time{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;padding:4px 0}
+
+  .track{height:4px;background:var(--sunken);border:1px solid var(--pill-edge);border-radius:2px;overflow:hidden}
+  .track .fill{height:100%;background:var(--accent);width:0%;transition:width .25s}
+
+  .note{font-size:10px;line-height:1.5;color:var(--ink-faint);background:var(--sunken);
+        border:1px solid var(--pill-edge);border-radius:8px;padding:8px 9px}
+  .note b{color:var(--ink-dim)}
+
+  .link{display:flex;align-items:center;gap:6px;background:var(--sunken);border:1px solid var(--pill-edge);
+        border-radius:8px;padding:7px 8px}
+  .link .u{flex:1;min-width:0;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:text}
+  .link button{background:transparent;border:1px solid var(--pill-edge);border-radius:6px;color:var(--ink-dim);
+               width:24px;height:24px;cursor:pointer;display:grid;place-items:center}
+  .link button:hover{color:var(--ink)}
+  .link svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2}
+
+  input[type=text],input[type=password]{
+    font-family:inherit;font-size:11px;color:var(--ink);background:var(--raised);
+    border:1px solid var(--pill-edge);border-radius:8px;height:30px;padding:0 8px;width:100%;outline:none}
+  input:focus{border-color:var(--accent)}
+  .hide{display:none!important}
+  a{color:var(--accent);cursor:pointer;text-decoration:none}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <span class="mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg></span>
+    <span class="title">Smoke</span>
+    <span class="spacer"></span>
+    <span class="chip" id="statusChip"><span class="dot"></span><span id="statusText">Ready</span></span>
+  </div>
+
+  <div class="body">
+    <!-- main -->
+    <div id="main">
+      <span class="grouplabel">Recording this tab</span>
+      <div class="tab-card">
+        <img id="favicon" src="" alt="">
+        <span class="t" id="tabTitle">Loading…</span>
+      </div>
+
+      <div class="time hide" id="timer">0:00</div>
+
+      <button class="btn toggle" id="micBtn">
+        <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        Record my microphone too
+      </button>
+
+      <button class="btn primary" id="startBtn">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></svg>
+        Record this tab
+      </button>
+      <button class="btn danger hide" id="stopBtn">
+        <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+        Stop and publish
+      </button>
+
+      <div class="track hide" id="progress"><div class="fill" id="fill"></div></div>
+      <div class="note hide" id="stageNote"></div>
+
+      <div id="links" class="hide" style="display:flex;flex-direction:column;gap:6px"></div>
+
+      <div class="note">
+        Captures only this tab, following it as you scroll, with nothing else on your screen in shot. For a window, a region or your camera, use the Smoke desktop app.
+      </div>
+
+      <a id="openSettings" style="font-size:10px">Bunny settings</a>
+    </div>
+
+    <!-- settings -->
+    <div id="settings" class="hide" style="display:flex;flex-direction:column;gap:9px">
+      <span class="grouplabel">Bunny Stream</span>
+      <input type="text" id="libraryId" placeholder="Library id">
+      <input type="password" id="apiKey" placeholder="Stream API key">
+      <input type="text" id="cdnHostname" placeholder="vz-xxxx.b-cdn.net">
+      <button class="btn primary" id="saveSettings">Save</button>
+      <a id="backToMain" style="font-size:10px">Back</a>
+      <div class="note">Stored only in this browser profile with <b>chrome.storage.local</b>. Nothing is sent anywhere except Bunny.</div>
+    </div>
+  </div>
+
+<script src="popup.js"></script>
+</body>
+</html>

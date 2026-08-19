@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Smoke - camera</title>
+<link rel="stylesheet" href="cue.css">
+<style>
+  html, body { background: transparent; overflow: hidden; }
+
+  /* The window is transparent, so any shadow that reaches its edge is cut off
+     into a hard rectangle. Keep a margin wider than the shadow can travel. */
+  #wrap {
+    position: fixed; inset: 14px;
+    -webkit-app-region: drag;
+    cursor: grab;
+  }
+  #wrap:active { cursor: grabbing; }
+
+  #frame {
+    position: absolute; inset: 0;
+    overflow: hidden;
+    background: #05060a;            /* a plain div background does clip correctly */
+    /* max reach is 4 + 10 - 4 = 10px, plus the 2px ring, inside the 14px margin */
+    box-shadow: 0 4px 10px -4px rgba(0, 0, 0, .7), 0 0 0 2px rgba(109, 123, 255, .55);
+    transition: box-shadow .15s ease;
+  }
+  #frame.circle { border-radius: 50%; }
+  #frame.square { border-radius: 22px; }
+  #wrap.sizing #frame { box-shadow: 0 4px 10px -4px rgba(0,0,0,.7), 0 0 0 3px var(--accent); }
+
+  /* A <video> is promoted to its own compositing layer, and Chromium does not
+     clip that layer with the parent's border-radius, so the frame leaks out as
+     a rectangle. clip-path is applied to the layer itself and does clip. */
+  video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    background: #05060a;
+    transform: scaleX(-1);          /* mirror, the way people expect to see themselves */
+  }
+  video.nomirror { transform: none; }
+  #frame.circle video { clip-path: circle(50% at 50% 50%); }
+  #frame.square video { clip-path: inset(0 round 22px); }
+
+  /* ---------- hover controls ----------
+     A scrim over the whole bubble with the controls in the middle. Hovering
+     anywhere brings them up, rather than hunting for a strip at the bottom. */
+  /* The scrim itself never takes pointer events, only the buttons do. If it
+     did, hovering would block dragging the bubble around. */
+  #scrim {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    background: rgba(6, 7, 10, .62);
+    opacity: 0; pointer-events: none;
+    transition: opacity .15s ease;
+  }
+  #frame.circle #scrim { border-radius: 50%; }
+  #frame.square #scrim { border-radius: 22px; }
+  #wrap:hover #scrim, #wrap.sizing #scrim { opacity: 1; }
+  #scrim.locked { display: none !important; }
+
+  .tools { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  .row { display: flex; align-items: center; gap: 6px; }
+
+  .cbtn {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, .16);
+    background: rgba(255, 255, 255, .10);
+    color: #fff; display: grid; place-items: center; cursor: pointer;
+    -webkit-app-region: no-drag; padding: 0;
+    transition: background .12s, transform .08s;
+    pointer-events: none;                 /* enabled only while the scrim is up */
+  }
+  #wrap:hover .cbtn, #wrap.sizing .cbtn { pointer-events: auto; }
+  .cbtn.resize { cursor: nwse-resize; }
+  .cbtn:hover { background: rgba(255, 255, 255, .22); }
+  .cbtn:active { transform: scale(.92); }
+  .cbtn.on { background: var(--accent); border-color: var(--accent); }
+  .cbtn svg { width: 14px; height: 14px; stroke: currentColor; fill: none;
+              stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .cbtn.filled svg { fill: currentColor; stroke: none; }
+
+  .sizelabel {
+    font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: rgba(255, 255, 255, .62); font-variant-numeric: tabular-nums;
+  }
+
+
+  /* A dead camera should say so rather than sit there as a black disc that
+     looks like a working feed of an unlit room. */
+  #off {
+    position: absolute; inset: 0; display: none; place-items: center;
+    font-size: 11px; font-weight: 600; color: var(--ink-dim);
+    text-align: center; padding: 16px; line-height: 1.45;
+  }
+  #off svg { width: 20px; height: 20px; stroke: var(--warn); fill: none; stroke-width: 2;
+             stroke-linecap: round; display: block; margin: 0 auto 6px; }
+  #frame.dead { background: #14161b; box-shadow: 0 4px 10px -4px rgba(0,0,0,.7), 0 0 0 2px rgba(243,179,74,.5); }
+  #frame.dead #off { display: grid; }
+  #frame.dead video { display: none; }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="frame" class="circle">
+      <video id="v" autoplay playsinline muted></video>
+
+      <div id="off">
+        <div>
+          <svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+          <div id="offTitle">Camera unavailable</div>
+          <div id="offDetail" style="font-size:9.5px;font-weight:500;color:var(--ink-faint);margin-top:3px"></div>
+        </div>
+      </div>
+
+      <div id="scrim">
+        <div class="tools">
+          <div class="row">
+            <button class="cbtn" id="smaller" title="Smaller (or scroll down)">
+              <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+            </button>
+            <span class="sizelabel" id="sizeval">220</span>
+            <button class="cbtn" id="bigger" title="Bigger (or scroll up)">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </div>
+          <div class="row">
+            <button class="cbtn" id="shape" title="Circle or rounded square">
+              <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="5"/></svg>
+            </button>
+            <button class="cbtn on" id="mirror" title="Mirror">
+              <svg viewBox="0 0 24 24"><path d="M12 3v18M8 7 4 12l4 5M16 7l4 5-4 5"/></svg>
+            </button>
+            <button class="cbtn resize" id="resize" title="Press and drag to resize">
+              <svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            </button>
+            <button class="cbtn" id="hide" title="Hide the camera">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const video = document.getElementById('v');
+const frame = document.getElementById('frame');
+const wrap  = document.getElementById('wrap');
+const scrim = document.getElementById('scrim');
+
+let stream = null;
+let deviceId = '';
+let shape = 'circle';
+let mirrored = true;
+let size = 220;
+let watchdog = null;
+let saveTimer = null;
+
+const MIN = 120;
+const MAX = 620;
+
+/* ---------------- camera ---------------- */
+async function attach(id) {
+  clearInterval(watchdog);
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  if (!id) { setDead('No camera selected'); return; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: id }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
+    video.srcObject = stream;
+    frame.classList.remove('dead');
+
+    startHealthCheck();
+  } catch (e) {
+    console.warn('[smoke] camera bubble:', e.message);
+    setDead('Camera unavailable', e.name === 'NotReadableError' ? 'Another app is using it' : '');
+  }
+}
+
+/* A camera held by another app hands back a stream that looks healthy on
+   paper, right resolution and frames arriving, but every pixel is black. That
+   records as a black disc and you only find out afterwards, so sample the
+   actual picture and keep checking in case it comes back. */
+const probe = document.createElement('canvas');
+probe.width = 32; probe.height = 32;
+const probeCtx = probe.getContext('2d', { willReadFrequently: true });
+
+function meanLuma() {
+  if (!video.videoWidth || video.readyState < 2) return null;
+  try {
+    probeCtx.drawImage(video, 0, 0, 32, 32);
+    const d = probeCtx.getImageData(0, 0, 32, 32).data;
+    let sum = 0;
+    for (let i = 0; i < d.length; i += 4) sum += (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114);
+    return sum / (d.length / 4);
+  } catch (_) { return null; }
+}
+
+function startHealthCheck() {
+  clearInterval(watchdog);
+  let checks = 0;
+  watchdog = setInterval(() => {
+    const lum = meanLuma();
+    if (lum === null) {
+      // no frames at all after a few seconds
+      if (++checks > 3) setDead('Camera unavailable');
+      return;
+    }
+    checks = 0;
+    // a real dark room still reads above this; a held camera reads ~1
+    if (lum < 4) setDead('Camera is black', 'Another app is probably using it');
+    else clearDead();
+  }, 1500);
+}
+
+function setDead(title, detail) {
+  frame.classList.add('dead');
+  document.getElementById('offTitle').textContent = title;
+  document.getElementById('offDetail').textContent = detail || '';
+}
+function clearDead() { frame.classList.remove('dead'); }
+
+/* ---------------- shape ---------------- */
+function setShape(s) {
+  shape = s;
+  frame.classList.toggle('circle', s === 'circle');
+  frame.classList.toggle('square', s === 'square');
+}
+
+/* ---------------- size ----------------
+   Settings are written on idle, not on every frame of a drag. Writing to disk
+   inside the resize loop was most of why it felt sticky. */
+function applySize(next, { commit = false } = {}) {
+  size = Math.round(Math.max(MIN, Math.min(MAX, next)));
+  document.getElementById('sizeval').textContent = size;
+  cue.camUpdate({ size });
+  if (commit) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => cue.saveSettings({ cameraSize: size }), 200);
+  }
+}
+
+document.getElementById('smaller').onclick = () => applySize(size - 40, { commit: true });
+document.getElementById('bigger').onclick  = () => applySize(size + 40, { commit: true });
+
+document.getElementById('shape').onclick = () => {
+  setShape(shape === 'circle' ? 'square' : 'circle');
+  cue.saveSettings({ cameraShape: shape });
+};
+
+document.getElementById('mirror').onclick = (e) => {
+  mirrored = !mirrored;
+  video.classList.toggle('nomirror', !mirrored);
+  e.currentTarget.classList.toggle('on', mirrored);
+};
+
+document.getElementById('hide').onclick = () => cue.camHide();
+
+/* Scroll anywhere over the bubble to resize. Coalesced to one update per
+   frame so a fast trackpad flick cannot flood the main process. */
+let wheelPending = 0;
+let wheelRaf = null;
+wrap.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  wheelPending -= e.deltaY * 0.6;
+  if (wheelRaf) return;
+  wheelRaf = requestAnimationFrame(() => {
+    applySize(size + wheelPending, { commit: true });
+    wheelPending = 0;
+    wheelRaf = null;
+  });
+}, { passive: false });
+
+/* Press and drag the resize button and the main process takes over, following
+   the cursor on its own 16ms timer. Doing this from mousemove here meant one
+   IPC round trip per event, which is what made it feel sticky. */
+document.getElementById('resize').addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  wrap.classList.add('sizing');
+  cue.camResizeStart();
+  const up = () => {
+    wrap.classList.remove('sizing');
+    cue.camResizeEnd();
+    window.removeEventListener('mouseup', up);
+  };
+  window.addEventListener('mouseup', up);
+});
+
+/* ---------------- config from main ---------------- */
+cue.onCamConfig((cfg) => {
+  if (cfg.deviceId !== undefined && cfg.deviceId !== deviceId) {
+    deviceId = cfg.deviceId;
+    attach(deviceId);
+  }
+  if (cfg.shape) setShape(cfg.shape);
+  if (cfg.size) {
+    size = cfg.size;
+    document.getElementById('sizeval').textContent = size;
+  }
+  // in burn mode the chrome must never appear in the capture
+  if (cfg.recording !== undefined) {
+    const lock = Boolean(cfg.recording) && cfg.mode === 'burn';
+    scrim.classList.toggle('locked', lock);
+    rim.classList.toggle('locked', lock);
+  }
+});
+
+/* release the camera the moment the window goes away */
+window.addEventListener('beforeunload', () => {
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+});
+</script>
+</body>
+</html>

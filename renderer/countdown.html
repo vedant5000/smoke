@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Smoke - countdown</title>
+<link rel="stylesheet" href="cue.css">
+<style>
+  html, body { background: transparent; }
+  #ring { position: fixed; inset: 0; display: grid; place-items: center; }
+
+  /* The window is transparent, so a shadow that reaches its edge is clipped
+     into a hard rectangle. This disc has 55px of margin inside a 300px window,
+     so the shadow must stay well inside that: 10 + 34 - 12 = 32px of reach. */
+  .disc {
+    position: relative; width: 190px; height: 190px; border-radius: 50%;
+    background: rgba(8, 9, 11, .88);
+    border: 1px solid var(--pill-edge);
+    box-shadow: 0 10px 34px -12px rgba(0, 0, 0, .9);
+    display: grid; place-items: center;
+  }
+  svg.track { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+  svg.track circle { fill: none; stroke-width: 3; }
+  .bg { stroke: rgba(255, 255, 255, .07); }
+  .fg { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+
+  #n {
+    font-size: 74px; font-weight: 700; color: var(--ink);
+    font-variant-numeric: tabular-nums; line-height: 1;
+  }
+  #sub { position: absolute; bottom: 34px; font-size: 10px; letter-spacing: .14em;
+         text-transform: uppercase; color: var(--ink-faint); font-weight: 700; }
+
+  @keyframes pop { 0% { transform: scale(.82); opacity: .4; } 60% { transform: scale(1.04); } 100% { transform: scale(1); opacity: 1; } }
+  #n.pop { animation: pop .34s cubic-bezier(.2, .9, .3, 1.2); }
+</style>
+</head>
+<body>
+  <div id="ring">
+    <div class="disc">
+      <svg class="track" viewBox="0 0 100 100">
+        <circle class="bg" cx="50" cy="50" r="47"></circle>
+        <circle class="fg" id="fg" cx="50" cy="50" r="47"></circle>
+      </svg>
+      <div id="n">3</div>
+      <div id="sub">Get ready</div>
+    </div>
+  </div>
+
+<script>
+const C = 2 * Math.PI * 47;
+const fg = document.getElementById('fg');
+const n = document.getElementById('n');
+fg.style.strokeDasharray = C;
+
+let timer = null;
+
+cue.onCountdownStart((seconds) => {
+  clearInterval(timer);
+  let left = Number(seconds) || 3;
+  const total = left;
+
+  const paint = () => {
+    n.textContent = left;
+    n.classList.remove('pop');
+    void n.offsetWidth;
+    n.classList.add('pop');
+    fg.style.strokeDashoffset = C * (1 - left / total);
+  };
+  paint();
+
+  timer = setInterval(() => {
+    left -= 1;
+    if (left <= 0) {
+      clearInterval(timer);
+      n.textContent = '';
+      document.getElementById('sub').textContent = 'Recording';
+      fg.style.strokeDashoffset = C;
+      return;
+    }
+    paint();
+  }, 1000);
+});
+</script>
+</body>
+</html>

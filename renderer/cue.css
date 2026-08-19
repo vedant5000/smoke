@@ -1,0 +1,268 @@
+/* Cue design system
+   Tokens lifted from Cue (renderer/prompter.html) so Record feels like the same product.
+   Colour is never the only signal: every state carries an icon or a label too. */
+
+:root {
+  /* surfaces */
+  --pill-bg:    #08090b;
+  --pill-edge:  #1c1f26;
+  --sunken:     #0f1116;
+  --raised:     #14161b;
+  --raised-hi:  #1c1f28;
+
+  /* ink */
+  --ink:        #f4f6fb;
+  --ink-dim:    #9aa3b2;
+  --ink-faint:  #5b6474;
+
+  /* accent + states */
+  --accent:     #6d7bff;
+  --accent-dim: rgba(109, 123, 255, .18);
+  --rec:        #ff5a5f;
+  --rec-dim:    rgba(255, 90, 95, .16);
+  --good:       #35d69b;
+  --warn:       #f3b34a;
+
+  /* geometry */
+  --radius:     20px;
+  --radius-md:  12px;
+  --radius-sm:  8px;
+  --radius-xs:  6px;
+
+  --hairline:   1px solid rgba(255, 255, 255, .05);
+  --shadow:     0 22px 60px -16px rgba(0, 0, 0, .85),
+                inset 0 -1px 0 rgba(255, 255, 255, .04);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: "Inter", "SF Pro Display", -apple-system, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--ink);
+  user-select: none;
+  cursor: default;
+}
+
+/* ---------- panel shell ---------- */
+.panel {
+  position: fixed;
+  inset: 0;
+  background: var(--pill-bg);
+  border: 1px solid var(--pill-edge);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* top bar */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 8px 12px;
+  flex: none;
+  border-bottom: var(--hairline);
+  -webkit-app-region: drag;
+}
+.bar > * { -webkit-app-region: no-drag; }
+
+.title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: var(--ink);
+}
+.spacer { flex: 1; }
+
+.meta {
+  font-size: 10px;
+  letter-spacing: .06em;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- segmented control ---------- */
+.seg {
+  display: flex;
+  gap: 3px;
+  background: var(--sunken);
+  border: 1px solid var(--pill-edge);
+  border-radius: 9px;
+  padding: 3px;
+}
+.seg button {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-dim);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-xs);
+  padding: 5px 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.seg button:hover { color: var(--ink); }
+.seg button.on { background: var(--accent); color: #fff; }
+.seg button svg { width: 12px; height: 12px; fill: currentColor; }
+
+/* ---------- buttons ---------- */
+.btn {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--pill-edge);
+  border-radius: var(--radius-sm);
+  height: 30px;
+  min-width: 30px;
+  padding: 0 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: background .12s, border-color .12s, opacity .12s;
+}
+.btn:hover { background: var(--raised-hi); }
+.btn:active { transform: translateY(.5px); }
+.btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn[disabled] { opacity: .38; cursor: not-allowed; }
+.btn svg { width: 14px; height: 14px; fill: currentColor; flex: none; }
+
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: #7d89ff; }
+.btn.danger { background: var(--rec); border-color: var(--rec); color: #fff; }
+.btn.danger:hover { background: #ff6e72; }
+.btn.ghost { background: transparent; }
+.btn.ghost:hover { background: var(--raised); }
+/* .btn.ghost is declared after .btn.on, so an active ghost toggle needs to
+   restate the accent or it renders as an outline only. */
+.btn.ghost.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.ghost.on:hover { background: #7d89ff; }
+.btn.lg { height: 38px; font-size: 13px; padding: 0 16px; border-radius: 10px; }
+
+.icon-btn {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  border: 1px solid var(--pill-edge);
+  background: transparent;
+  color: var(--ink-dim);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+.icon-btn:hover { color: var(--ink); background: var(--raised); }
+.icon-btn.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+.icon-btn svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn.filled svg { fill: currentColor; stroke: none; }
+
+/* ---------- labels ---------- */
+.grouplabel {
+  font-size: 9px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--pill-edge);
+  background: var(--sunken);
+  color: var(--ink-dim);
+}
+.chip .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.chip.rec { color: var(--rec); border-color: rgba(255, 90, 95, .35); background: var(--rec-dim); }
+.chip.good { color: var(--good); border-color: rgba(53, 214, 155, .3); }
+.chip.accent { color: var(--accent); border-color: rgba(109, 123, 255, .35); background: var(--accent-dim); }
+
+/* ---------- scrollbars ---------- */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb {
+  background: #22262f;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: #2c313c; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- form controls ---------- */
+select, input[type="text"] {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--pill-edge);
+  border-radius: var(--radius-sm);
+  height: 30px;
+  padding: 0 8px;
+  cursor: pointer;
+  outline: none;
+  max-width: 100%;
+}
+select:focus, input[type="text"]:focus { border-color: var(--accent); }
+
+input[type="range"] {
+  -webkit-appearance: none;
+  height: 3px;
+  background: var(--pill-edge);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 2px solid var(--pill-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .6);
+}
+
+/* ---------- progress ---------- */
+.track {
+  height: 4px;
+  background: var(--sunken);
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid var(--pill-edge);
+}
+.track .fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width .2s ease;
+}
+
+/* ---------- utility ---------- */
+.row { display: flex; align-items: center; gap: 8px; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+.mono { font-variant-numeric: tabular-nums; }
+.dim { color: var(--ink-dim); }
+.faint { color: var(--ink-faint); }
+.hide { display: none !important; }
+
+@keyframes cue-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.pulse { animation: cue-pulse 1.6s ease-in-out infinite; }

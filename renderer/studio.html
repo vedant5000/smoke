@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Smoke Studio</title>
+<link rel="stylesheet" href="cue.css">
+<style>
+  html, body { background: var(--pill-bg); }
+  .panel { border: none; border-radius: 0; box-shadow: none; }
+
+  .bar { padding: 9px 12px; }
+  .bar .brand { display: flex; align-items: center; gap: 8px; }
+  .bar .brand .mark {
+    width: 20px; height: 20px; border-radius: 6px; background: #f7efea;
+    display: grid; place-items: center; flex: none; overflow: hidden;
+  }
+  .bar .brand .mark img { width: 15px; height: 15px; display: block; }
+
+  /* the window is frameless, so it carries its own controls */
+  .winctl { display: flex; align-items: center; gap: 5px; margin-left: 4px; padding-left: 10px;
+            border-left: 1px solid var(--pill-edge); }
+  .danger-hover:hover { background: var(--rec) !important; border-color: var(--rec) !important; color: #fff !important; }
+
+  .main { flex: 1; display: flex; min-height: 0; }
+
+  /* ---------- stage ---------- */
+  .stage {
+    flex: 1; min-width: 0; display: flex; flex-direction: column;
+    background: #050609; border-right: 1px solid var(--pill-edge);
+  }
+  .canvas-wrap {
+    flex: 1; min-height: 0; display: grid; place-items: center; padding: 20px; position: relative;
+  }
+  #canvas {
+    max-width: 100%; max-height: 100%; border-radius: 10px;
+    box-shadow: 0 24px 60px -20px rgba(0,0,0,.9), 0 0 0 1px var(--pill-edge);
+    cursor: default;
+  }
+  #canvas.dragging { cursor: grabbing; }
+  #canvas.aiming { cursor: crosshair; }
+
+  .stage-hint {
+    position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 10.5px; color: var(--ink-faint); background: rgba(8,9,11,.9);
+    border: 1px solid var(--pill-edge); border-radius: 999px; padding: 5px 12px;
+    pointer-events: none; opacity: 0; transition: opacity .18s;
+  }
+  .stage-hint.on { opacity: 1; }
+
+  /* ---------- transport + timeline ---------- */
+  .transport {
+    flex: none; padding: 8px 12px; display: flex; align-items: center; gap: 10px;
+    border-top: 1px solid var(--pill-edge);
+  }
+  .time { font-size: 12px; font-weight: 600; color: var(--ink); min-width: 92px; }
+  .time .sep { color: var(--ink-faint); font-weight: 500; }
+
+  .timeline-wrap { flex: none; padding: 0 12px 12px; }
+  .timeline {
+    position: relative; height: 58px; background: var(--sunken);
+    border: 1px solid var(--pill-edge); border-radius: 10px; overflow: hidden;
+    cursor: pointer;
+  }
+  #waves { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .5; }
+
+  .tlbar { display: flex; align-items: center; gap: 6px; padding: 0 0 7px; }
+  .tlbar .btn { height: 26px; font-size: 11px; padding: 0 9px; }
+  .tlbar .icon-btn { width: 24px; height: 24px; }
+
+  .ruler { position: relative; height: 15px; margin-bottom: 3px; overflow: hidden; }
+  .ruler .tick {
+    position: absolute; top: 0; transform: translateX(-50%);
+    font-size: 8.5px; font-weight: 600; color: var(--ink-faint);
+    font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 5px;
+  }
+  .ruler .tick i { position: absolute; top: 0; left: 50%; width: 1px; height: 4px; background: #2a2f3a; }
+
+  /* everything cut out of the recording */
+  .cut {
+    position: absolute; top: 0; bottom: 0; z-index: 2; pointer-events: none;
+    background: repeating-linear-gradient(45deg, rgba(5,6,9,.86) 0 6px, rgba(20,22,27,.86) 6px 12px);
+  }
+  /* the pieces that survive */
+  .segblock {
+    position: absolute; top: 0; bottom: 0; z-index: 1; cursor: pointer;
+    border-left: 1px solid rgba(109,123,255,.35); border-right: 1px solid rgba(109,123,255,.35);
+  }
+  .segblock.sel { background: var(--accent-dim); box-shadow: inset 0 0 0 2px var(--accent); }
+  .segblock .segname {
+    position: absolute; top: 3px; left: 4px; font-size: 8px; font-weight: 700;
+    color: var(--ink-faint); background: rgba(8,9,11,.7); border-radius: 3px; padding: 1px 4px;
+  }
+  .segblock.sel .segname { color: #fff; background: var(--accent); }
+  .trim-handle {
+    position: absolute; top: 0; bottom: 0; width: 10px; background: var(--accent);
+    cursor: ew-resize; display: grid; place-items: center; z-index: 4;
+  }
+  .trim-handle::after { content: ''; width: 2px; height: 16px; background: rgba(255,255,255,.75); border-radius: 1px; }
+  .trim-handle.start { border-radius: 4px 0 0 4px; }
+  .trim-handle.end { border-radius: 0 4px 4px 0; }
+
+  .tlseg {
+    position: absolute; height: 15px; border-radius: 4px; z-index: 3;
+    display: flex; align-items: center; padding: 0 5px; overflow: hidden;
+    font-size: 8.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    cursor: grab; border: 1px solid transparent;
+  }
+  .tlseg.zoom { bottom: 4px; background: var(--accent-dim); border-color: rgba(109,123,255,.55); color: #b9c1ff; }
+  .tlseg.blur { bottom: 22px; background: rgba(243,179,74,.16); border-color: rgba(243,179,74,.5); color: #f3cf8f; }
+  .tlseg.sel { box-shadow: 0 0 0 1px var(--ink); }
+  .tlseg .grab { position: absolute; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+  .tlseg .grab.l { left: 0; } .tlseg .grab.r { right: 0; }
+
+  #playhead { position: absolute; top: 0; bottom: 0; width: 1.5px; background: var(--ink); z-index: 5; pointer-events: none; }
+  #playhead::before {
+    content: ''; position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
+    border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid var(--ink);
+  }
+
+  /* ---------- inspector ---------- */
+  .inspector { width: 306px; flex: none; display: flex; flex-direction: column; background: var(--pill-bg); }
+  .tabs { flex: none; display: flex; gap: 3px; padding: 9px 10px; border-bottom: 1px solid var(--pill-edge); }
+  .tabs button {
+    flex: 1; font-family: inherit; font-size: 10.5px; font-weight: 600; color: var(--ink-dim);
+    background: transparent; border: 1px solid transparent; border-radius: 7px; padding: 6px 4px; cursor: pointer;
+  }
+  .tabs button:hover { color: var(--ink); }
+  .tabs button.on { background: var(--raised); border-color: var(--pill-edge); color: var(--ink); }
+
+  .pane { flex: 1; overflow-y: auto; padding: 12px; display: none; flex-direction: column; gap: 14px; }
+  .pane.on { display: flex; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field-row { display: flex; align-items: center; gap: 8px; }
+  .field-row .grouplabel { min-width: 62px; }
+  .field-row input[type=range] { flex: 1; }
+  .field-row .val { font-size: 10.5px; color: var(--ink-dim); min-width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* layout presets, drawn as little diagrams of screen + camera */
+  .layout-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .lay {
+    position: relative; aspect-ratio: 16/10; border-radius: 8px; cursor: pointer;
+    background: var(--sunken); border: 2px solid var(--pill-edge);
+    padding: 0; overflow: hidden;
+  }
+  .lay:hover { border-color: #394054; }
+  .lay.on { border-color: var(--accent); background: var(--accent-dim); }
+  .lay .ls, .lay .lc { position: absolute; }
+  .lay .ls { background: #4a5164; border-radius: 2px; }
+  .lay.on .ls { background: #6f78a0; }
+  .lay .lc { background: var(--accent); }
+  .lay .lc.circle { border-radius: 50%; }
+  .lay .lc.rounded { border-radius: 3px; }
+  .lay .nmx {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 3px;
+    font-size: 7px; font-weight: 700; color: var(--ink-dim);
+    background: rgba(8,9,11,.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .lay.on .nmx { color: var(--ink); }
+
+  .bg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; max-height: 330px; overflow-y: auto; padding-right: 2px; }
+  .bg {
+    position: relative; aspect-ratio: 16/10; border-radius: 8px; cursor: pointer;
+    border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
+    overflow: hidden; padding: 0; font-family: inherit;
+  }
+  .bg:hover { box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); }
+  .bg.on { border-color: var(--ink); }
+  .bg .nm {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 4px;
+    font-size: 7.5px; font-weight: 700; letter-spacing: .03em; color: #fff;
+    background: linear-gradient(transparent, rgba(0,0,0,.72));
+    text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .bg.light .nm { color: #0b0d12; background: linear-gradient(transparent, rgba(255,255,255,.75)); }
+
+  .list { display: flex; flex-direction: column; gap: 6px; }
+  .item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 9px;
+    background: var(--sunken); border: 1px solid var(--pill-edge); border-radius: var(--radius-sm);
+    font-size: 11px; cursor: pointer;
+  }
+  .item.on { border-color: var(--accent); background: var(--accent-dim); }
+  .item .t { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .item .s { font-size: 10px; color: var(--ink-faint); }
+  .item .del { margin-left: auto; }
+
+  .hint { font-size: 10px; line-height: 1.5; color: var(--ink-faint); }
+  .hint b { color: var(--ink-dim); font-weight: 600; }
+
+  .empty-list { font-size: 10.5px; color: var(--ink-faint); text-align: center; padding: 14px 8px; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(8px);
+    background: var(--raised); border: 1px solid var(--pill-edge); border-radius: 999px;
+    padding: 8px 16px; font-size: 11.5px; font-weight: 600; color: var(--ink);
+    box-shadow: var(--shadow); opacity: 0; pointer-events: none; z-index: 50;
+    transition: opacity .18s ease, transform .18s ease;
+  }
+  #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---------- shortcuts ---------- */
+  #help {
+    position: fixed; inset: 0; background: rgba(5,6,9,.82); backdrop-filter: blur(10px);
+    display: none; place-items: center; z-index: 45;
+  }
+  #help.on { display: grid; }
+  .keys { display: flex; flex-direction: column; gap: 7px; }
+  .keys > div { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--ink-dim); }
+  .keys > div > span { margin-left: auto; text-align: right; }
+  kbd {
+    font-family: inherit; font-size: 10px; font-weight: 700; color: var(--ink);
+    background: var(--raised); border: 1px solid var(--pill-edge);
+    border-radius: 5px; padding: 3px 7px; min-width: 22px; text-align: center;
+  }
+
+  /* ---------- publish overlay ---------- */
+  #publish {
+    position: fixed; inset: 0; background: rgba(5,6,9,.82); backdrop-filter: blur(10px);
+    display: none; place-items: center; z-index: 40;
+  }
+  #publish.on { display: grid; }
+  .pub-card {
+    width: 480px; max-width: calc(100vw - 40px);
+    background: var(--pill-bg); border: 1px solid var(--pill-edge); border-radius: 16px;
+    box-shadow: var(--shadow); padding: 20px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .pub-title { font-size: 14px; font-weight: 700; }
+  .pub-stage { font-size: 11px; color: var(--ink-dim); display: flex; align-items: center; gap: 7px; }
+  .link-row {
+    display: flex; align-items: center; gap: 7px; background: var(--sunken);
+    border: 1px solid var(--pill-edge); border-radius: var(--radius-sm); padding: 7px 9px;
+  }
+  .link-row .lbl { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); font-weight: 700; min-width: 44px; }
+  .link-row .url {
+    flex: 1; min-width: 0; font-size: 11px; color: var(--ink); overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; user-select: text;
+  }
+</style>
+</head>
+<body>
+<div class="panel">
+
+  <div class="bar">
+    <div class="brand">
+      <span class="mark"><img src="../assets/mark-black.png" alt=""></span>
+      <span class="title">Smoke Studio</span>
+    </div>
+    <span class="chip" id="durchip"><span class="dot"></span><span id="durtext">0:00</span></span>
+    <div class="spacer"></div>
+    <button class="btn ghost" id="saveLocal">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Save file
+    </button>
+    <button class="btn primary" id="publishBtn">
+      <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Publish to Bunny
+    </button>
+
+    <div class="winctl">
+      <button class="icon-btn" id="minBtn" title="Minimise">
+        <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+      </button>
+      <button class="icon-btn danger-hover" id="closeBtn" title="Close Studio (Cmd+W)">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="stage">
+      <div class="canvas-wrap">
+        <canvas id="canvas" width="1920" height="1080"></canvas>
+        <div class="stage-hint" id="stageHint"></div>
+      </div>
+
+      <div class="transport">
+        <button class="icon-btn filled" id="play" title="Play or pause (Space)">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button class="icon-btn" id="toStart" title="Back to the start">
+          <svg viewBox="0 0 24 24"><path d="M19 20 9 12l10-8v16zM5 4v16"/></svg>
+        </button>
+        <div class="time mono"><span id="tnow">0:00</span> <span class="sep">/</span> <span id="ttotal">0:00</span></div>
+        <div class="spacer"></div>
+        <button class="btn ghost" id="addZoom">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5M11 8v6M8 11h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Add zoom
+        </button>
+        <button class="btn ghost" id="addBlur">
+          <svg viewBox="0 0 24 24"><path d="M12 3s6 6.4 6 10a6 6 0 0 1-12 0c0-3.6 6-10 6-10z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          Add blur
+        </button>
+        <button class="icon-btn" id="helpBtn" title="Keyboard shortcuts">
+          <svg viewBox="0 0 24 24"><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg>
+        </button>
+      </div>
+
+      <div class="timeline-wrap">
+        <div class="tlbar">
+          <button class="btn ghost" id="splitBtn" title="Split at the playhead (S)">
+            <svg viewBox="0 0 24 24"><path d="M12 3v18M7 8 4 12l3 4M17 8l3 4-3 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Split
+          </button>
+          <button class="btn ghost" id="deleteSegBtn" title="Remove the selected piece (Delete)">
+            <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Remove
+          </button>
+          <div class="spacer" style="flex:1"></div>
+          <button class="icon-btn" id="zoomOut" title="Zoom out">
+            <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+          </button>
+          <span class="meta mono" id="zoomVal" style="min-width:42px;text-align:center">100%</span>
+          <button class="icon-btn" id="zoomIn" title="Zoom in">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <button class="btn ghost" id="zoomFit" title="Fit the whole recording">Fit</button>
+        </div>
+
+        <div class="ruler" id="ruler"></div>
+
+        <div class="timeline" id="timeline">
+          <canvas id="waves"></canvas>
+          <div class="trim-handle start" id="trimL"></div>
+          <div class="trim-handle end" id="trimR"></div>
+          <div id="playhead"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="inspector">
+      <div class="tabs" id="tabs">
+        <button class="on" data-tab="layout">Layout</button>
+        <button data-tab="zoom">Zoom</button>
+        <button data-tab="look">Look</button>
+        <button data-tab="audio">Audio</button>
+        <button data-tab="blur">Blur</button>
+      </div>
+
+      <!-- LAYOUT -->
+      <div class="pane on" data-pane="layout">
+        <div class="field">
+          <span class="grouplabel">Layout</span>
+          <div class="layout-grid" id="layoutGrid"></div>
+        </div>
+
+        <div class="hint hide" id="noCamNote">
+          This take has no camera track, so the camera layouts are unavailable. Turn the camera on in the recorder before your next one.
+        </div>
+
+        <div class="field" id="sizeField">
+          <span class="grouplabel">Camera size</span>
+          <div class="seg" style="width:100%;display:flex" id="camSizeSeg">
+            <button data-size="S" style="flex:1;justify-content:center">S</button>
+            <button class="on" data-size="M" style="flex:1;justify-content:center">M</button>
+            <button data-size="L" style="flex:1;justify-content:center">L</button>
+          </div>
+        </div>
+
+        <div class="field" id="shapeField">
+          <span class="grouplabel">Camera shape</span>
+          <div class="seg" style="width:100%;display:flex" id="shapeSeg">
+            <button class="on" data-shape="circle" style="flex:1;justify-content:center">Circle</button>
+            <button data-shape="rounded" style="flex:1;justify-content:center">Rounded</button>
+            <button data-shape="rect" style="flex:1;justify-content:center">Square</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="grouplabel">Adjust</span>
+          <div class="hint" style="margin-bottom:2px">
+            Click either layer on the preview to select it, then <b>drag to move</b> or pull a <b>handle to resize</b>.
+          </div>
+          <div class="field-row">
+            <button class="btn ghost" id="cropScreen" style="flex:1;justify-content:flex-start">
+              <svg viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Crop screen
+            </button>
+            <button class="icon-btn hide" id="resetScreenCrop" title="Clear the screen crop">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+          <div class="field-row">
+            <button class="btn ghost" id="cropCamera" style="flex:1;justify-content:flex-start">
+              <svg viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Reframe camera
+            </button>
+            <button class="icon-btn hide" id="resetCameraCrop" title="Clear the camera framing">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="field" id="motionField">
+          <div class="field-row">
+            <span class="grouplabel">Motion</span>
+            <button class="btn ghost" id="motionBtn" style="flex:1;justify-content:flex-start">
+              <svg viewBox="0 0 24 24"><path d="M4 18 10 6l4 8 2-4 4 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Replay how I moved it
+            </button>
+          </div>
+          <div class="hint" id="motionHint">Uses the path the bubble took while you recorded.</div>
+        </div>
+
+        <div class="field">
+          <div class="field-row">
+            <span class="grouplabel">Mirror</span>
+            <button class="btn ghost on" id="mirrorBtn" style="flex:1;justify-content:flex-start">Mirror the camera</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ZOOM -->
+      <div class="pane" data-pane="zoom">
+        <div class="hint">
+          <b>Add zoom</b> drops a segment at the playhead. Select it, then click the preview to set what it zooms into.
+        </div>
+        <div class="list" id="zoomList"></div>
+        <div class="empty-list" id="zoomEmpty">No zooms yet</div>
+
+        <div class="field hide" id="zoomEdit">
+          <div class="field-row">
+            <span class="grouplabel">Amount</span>
+            <input type="range" id="zoomScale" min="110" max="300" value="160">
+            <span class="val" id="zoomScaleVal">1.6x</span>
+          </div>
+          <div class="field-row">
+            <span class="grouplabel">Start</span>
+            <input type="range" id="zoomStart" min="0" max="100" value="0">
+            <span class="val" id="zoomStartVal">0.0s</span>
+          </div>
+          <div class="field-row">
+            <span class="grouplabel">Length</span>
+            <input type="range" id="zoomLen" min="5" max="200" value="25">
+            <span class="val" id="zoomLenVal">2.5s</span>
+          </div>
+          <button class="btn ghost" id="zoomAim">Click the preview to aim</button>
+        </div>
+      </div>
+
+      <!-- LOOK -->
+      <div class="pane" data-pane="look">
+        <div class="field">
+          <div class="field-row">
+            <span class="grouplabel" style="min-width:0">Background</span>
+            <div class="spacer" style="flex:1"></div>
+            <button class="btn ghost" id="bgNone" style="height:24px;font-size:10px;padding:0 8px">None</button>
+          </div>
+          <div class="bg-grid" id="bgGrid"></div>
+        </div>
+
+        <div class="field">
+          <div class="field-row">
+            <span class="grouplabel">Padding</span>
+            <input type="range" id="padding" min="0" max="14" value="0">
+            <span class="val" id="paddingVal">0%</span>
+          </div>
+          <div class="field-row">
+            <span class="grouplabel">Corners</span>
+            <input type="range" id="radius" min="0" max="80" value="0">
+            <span class="val" id="radiusVal">0</span>
+          </div>
+          <div class="seg" style="width:100%;display:flex" id="shapeSegBg">
+            <button class="on" data-r="0" style="flex:1;justify-content:center">Square</button>
+            <button data-r="18" style="flex:1;justify-content:center">Rounded</button>
+            <button data-r="38" style="flex:1;justify-content:center">Soft</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="grouplabel">Output size</span>
+          <select id="canvasSize">
+            <option value="1920x1080">1920 x 1080 (16:9)</option>
+            <option value="2560x1440">2560 x 1440 (16:9)</option>
+            <option value="1280x720">1280 x 720 (16:9)</option>
+            <option value="1080x1080">1080 x 1080 (square)</option>
+            <option value="1080x1920">1080 x 1920 (vertical)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- AUDIO -->
+      <div class="pane" data-pane="audio">
+        <div class="field">
+          <span class="grouplabel">Your voice</span>
+          <div class="seg" style="width:100%;display:flex" id="voiceSeg">
+            <button data-voice="off" style="flex:1;justify-content:center">Off</button>
+            <button class="on" data-voice="clean" style="flex:1;justify-content:center">Clean up</button>
+            <button data-voice="studio" style="flex:1;justify-content:center">Studio</button>
+          </div>
+          <div class="hint" id="voiceHint"></div>
+        </div>
+
+        <div class="field" id="micField">
+          <div class="field-row">
+            <span class="grouplabel">Voice level</span>
+            <input type="range" id="micGain" min="0" max="200" value="100">
+            <span class="val" id="micGainVal">100%</span>
+          </div>
+        </div>
+
+        <div class="field" id="sysField">
+          <div class="field-row">
+            <span class="grouplabel">System</span>
+            <input type="range" id="sysGain" min="0" max="150" value="70">
+            <span class="val" id="sysGainVal">70%</span>
+          </div>
+          <div class="hint">Anything playing on your computer during the take. Ducked under your voice by default.</div>
+        </div>
+
+        <div class="hint hide" id="noAudioNote">
+          This take has no separate voice track, so there is nothing to clean up.
+        </div>
+      </div>
+
+      <!-- BLUR -->
+      <div class="pane" data-pane="blur">
+        <div class="hint">
+          <b>Add blur</b> then drag a box on the preview over anything private. It stays hidden for the whole clip unless you shorten it here.
+        </div>
+        <div class="list" id="blurList"></div>
+        <div class="empty-list" id="blurEmpty">No hidden areas</div>
+
+        <div class="field hide" id="blurEdit">
+          <span class="grouplabel">Style</span>
+          <div class="seg" style="width:100%;display:flex" id="blurStyle">
+            <button class="on" data-style="blur" style="flex:1;justify-content:center">Blur</button>
+            <button data-style="pixelate" style="flex:1;justify-content:center">Pixelate</button>
+            <button data-style="solid" style="flex:1;justify-content:center">Solid</button>
+          </div>
+          <div class="field-row">
+            <span class="grouplabel">Strength</span>
+            <input type="range" id="blurStrength" min="10" max="100" value="70">
+            <span class="val" id="blurStrengthVal">70%</span>
+          </div>
+          <div class="hint">
+            Text needs a high setting to be genuinely unreadable. <b>Pixelate</b> or <b>Solid</b> are
+            the safe choices for anything sensitive, because a blur can sometimes be reversed.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- keyboard shortcuts -->
+<div id="help">
+  <div class="pub-card" style="width:420px">
+    <div class="pub-title">Shortcuts</div>
+    <div class="keys">
+      <div><kbd>Space</kbd><span>Play or pause</span></div>
+      <div><kbd>&larr;</kbd> <kbd>&rarr;</kbd><span>Step one frame</span></div>
+      <div><kbd>Shift</kbd> <kbd>&larr;</kbd><span>Step one second</span></div>
+      <div><kbd>S</kbd><span>Split the recording at the playhead</span></div>
+      <div><kbd>Delete</kbd><span>Remove the selected piece, zoom or blur</span></div>
+      <div><kbd>Esc</kbd><span>Cancel aiming, cropping or a selection</span></div>
+      <div><kbd>Cmd</kbd> <kbd>W</kbd><span>Close Studio</span></div>
+    </div>
+    <div class="hint" style="line-height:1.6">
+      On the preview, <b>click a layer</b> to select it, then drag to move or pull a handle to resize.
+      <br><br>
+      To cut something out of the middle: put the playhead where it starts, <b>Split</b>, put it where
+      it ends, <b>Split</b> again, then click the piece between them and <b>Remove</b>.
+      <br><br>
+      Scroll the timeline to move along it. Hold <kbd>Cmd</kbd> while scrolling to zoom into the waveform.
+    </div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" id="helpClose">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- publish -->
+<div id="publish">
+  <div class="pub-card">
+    <div class="pub-title" id="pubTitle">Publishing to Bunny</div>
+    <div class="pub-stage">
+      <span id="pubStage">Rendering</span>
+      <span class="spacer" style="flex:1"></span>
+      <span class="mono faint" id="pubElapsed">0:00</span>
+    </div>
+    <div class="track"><div class="fill" id="pubFill" style="width:0%"></div></div>
+    <div class="hint hide" id="pubStalled"></div>
+    <div id="pubLinks" class="col hide"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn ghost" id="pubClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="backgrounds.js"></script>
+<script src="layouts.js"></script>
+<script src="studio.js"></script>
+</body>
+</html>

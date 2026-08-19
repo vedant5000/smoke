@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Smoke - recording</title>
+<link rel="stylesheet" href="cue.css">
+<style>
+  html, body { background: transparent; }
+  .panel {
+    inset: 4px; border-radius: 999px; flex-direction: row; align-items: center;
+    gap: 8px; padding: 0 8px 0 14px; -webkit-app-region: drag;
+  }
+  .panel > * { -webkit-app-region: no-drag; }
+
+  #dot {
+    width: 9px; height: 9px; border-radius: 50%; background: var(--rec); flex: none;
+    box-shadow: 0 0 0 3px var(--rec-dim);
+  }
+  #dot.paused { background: var(--warn); box-shadow: 0 0 0 3px rgba(243, 179, 74, .18); }
+
+  #time {
+    font-size: 14px; font-weight: 700; color: var(--ink);
+    font-variant-numeric: tabular-nums; letter-spacing: .01em; min-width: 54px;
+  }
+  #label { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); font-weight: 700; }
+
+  .divider { width: 1px; height: 22px; background: var(--pill-edge); flex: none; }
+  .grip { display: flex; flex-direction: column; gap: 2px; padding: 0 2px; cursor: grab; -webkit-app-region: drag; }
+  .grip span { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-faint); }
+</style>
+</head>
+<body>
+<div class="panel">
+  <div id="dot"></div>
+  <div>
+    <div id="time" class="mono">0:00</div>
+    <div id="label">Recording</div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <button class="icon-btn" id="pause" title="Pause">
+    <svg viewBox="0 0 24 24" class="pi"><path d="M8 5h3v14H8zM13 5h3v14h-3z" fill="currentColor" stroke="none"/></svg>
+  </button>
+
+  <button class="icon-btn" id="mic" title="Mute or unmute the microphone">
+    <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 19v3"/></svg>
+  </button>
+
+  <button class="icon-btn" id="cancel" title="Discard this recording">
+    <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+  </button>
+
+  <div class="divider"></div>
+
+  <button class="btn danger" id="stop" title="Stop and open Studio">
+    <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+    Stop
+  </button>
+
+  <div class="grip"><span></span><span></span><span></span></div>
+</div>
+
+<script>
+let paused = false;
+let micOn = true;
+
+function fmt(ms) {
+  const t = Math.floor(ms / 1000);
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const s = t % 60;
+  return h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${m}:${String(s).padStart(2, '0')}`;
+}
+
+const $ = (s) => document.querySelector(s);
+
+$('#pause').onclick = () => {
+  paused = !paused;
+  cue.recAction(paused ? 'pause' : 'resume');
+};
+
+$('#mic').onclick = () => {
+  if ($('#mic').disabled) return;
+  micOn = !micOn;
+  $('#mic').classList.toggle('on', micOn);
+  $('#mic').title = micOn ? 'Mute the microphone' : 'Unmute the microphone';
+  cue.recAction('toggle-mic');
+};
+
+$('#stop').onclick = () => cue.recAction('stop');
+
+$('#cancel').onclick = () => {
+  if (window.confirm('Discard this recording? It will not be saved or uploaded.')) {
+    cue.recAction('cancel');
+  }
+};
+
+cue.onRecConfig((cfg) => {
+  // no microphone in this take means there is nothing for mute to do
+  if (cfg.hasMic === false) {
+    const m = $('#mic');
+    m.disabled = true;
+    m.classList.remove('on');
+    m.style.opacity = '.35';
+    m.title = 'No microphone in this recording';
+  }
+});
+
+cue.onRecState((s) => {
+  $('#time').textContent = fmt(s.elapsed || 0);
+  paused = Boolean(s.paused);
+  $('#dot').classList.toggle('paused', paused);
+  $('#dot').classList.toggle('pulse', !paused && s.recording);
+  $('#label').textContent = paused ? 'Paused' : 'Recording';
+  $('#pause').querySelector('.pi').innerHTML = paused
+    ? '<path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/>'
+    : '<path d="M8 5h3v14H8zM13 5h3v14h-3z" fill="currentColor" stroke="none"/>';
+  $('#pause').title = paused ? 'Resume' : 'Pause';
+});
+
+$('#mic').classList.add('on');
+</script>
+</body>
+</html>

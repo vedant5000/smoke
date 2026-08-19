@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Smoke - tab capture",
+  "version": "1.0.0",
+  "description": "Record a single Chrome tab and publish it straight to Bunny Stream.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "tabCapture",
+    "offscreen",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://video.bunnycdn.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Smoke"
+  },
+  "icons": {
+    "128": "icon128.png"
+  }
+}
