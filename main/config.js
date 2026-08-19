@@ -60,7 +60,9 @@ function bunnyConfigured() {
 function saveBunny({ libraryId, apiKey, cdnHostname }) {
   const next = {
     libraryId: String(libraryId || '').trim(),
-    apiKey: String(apiKey || '').trim(),
+    /* every whitespace and zero-width character, not just the ends: a key
+       copied out of a wrapped message carries them in the middle */
+    apiKey: String(apiKey || '').replace(/[\s\u200B-\u200D\uFEFF\u00A0]/g, ''),
     cdnHostname: String(cdnHostname || '').trim().replace(/^https?:\/\//, '').replace(/\/+$/, ''),
   };
 

@@ -42,12 +42,21 @@ function cleanLibraryId(v) {
   return m ? m[1] : s;
 }
 
+/* A key never contains whitespace or zero-width characters, but a key copied
+   out of a wrapped chat message very often does, in the middle where trimming
+   cannot reach. Clean it in the field itself so the dots visibly drop to the
+   real length and you can see the paste was the problem. */
+function cleanKey(v) {
+  return String(v || '').replace(/[\s\u200B-\u200D\uFEFF\u00A0]/g, '');
+}
+
 async function connect() {
   const libraryId = cleanLibraryId(els.lib.value);
-  const apiKey = els.key.value.trim();
+  const apiKey = cleanKey(els.key.value);
   const cdnHostname = els.cdn.value.trim();
 
   els.lib.value = libraryId;
+  els.key.value = apiKey;
   els.lib.classList.remove('bad');
   els.key.classList.remove('bad');
 
@@ -89,6 +98,16 @@ for (const el of [els.lib, els.key, els.cdn]) {
   el.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
   el.addEventListener('input', () => { el.classList.remove('bad'); });
 }
+
+/* Clean a pasted key immediately rather than waiting for Connect, so what you
+   see in the box is what actually gets sent. */
+els.key.addEventListener('paste', (e) => {
+  const text = (e.clipboardData || window.clipboardData).getData('text');
+  if (!text) return;
+  e.preventDefault();
+  els.key.value = cleanKey(text);
+  els.key.classList.remove('bad');
+});
 
 $('#dash').onclick = () => window.cue.openExternal('https://dash.bunny.net/stream');
 $('#close').onclick = () => window.cue.setupCancel();

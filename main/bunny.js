@@ -200,9 +200,18 @@ function probeAccountKey(apiKey) {
    app's own. GET /library/{id} is the cheapest call that proves both the
    library id and the key are right: a wrong key gives 401, a wrong library
    gives 404, and a good pair gives a small counts object. */
+/* Strip every whitespace and zero-width character, not just the ends.
+   A Bunny key never contains either, and copying one out of a chat message or
+   a wrapped email routinely drags in a newline, an indent, or a zero-width
+   space somewhere in the MIDDLE. .trim() cannot reach those, so the key looks
+   right, is the wrong length, and comes back 401 with nothing to see. */
+function cleanKey(v) {
+  return String(v || '').replace(/[\s\u200B-\u200D\uFEFF\u00A0]/g, '');
+}
+
 async function validate({ libraryId, apiKey }) {
   const id = String(libraryId || '').trim();
-  const key = String(apiKey || '').trim();
+  const key = cleanKey(apiKey);
   if (!id) return { ok: false, error: 'Enter your library ID.' };
   if (!/^\d+$/.test(id)) return { ok: false, error: 'The library ID should be numbers only, like 123456.' };
   if (!key) return { ok: false, error: 'Enter your Stream API key.' };
@@ -289,6 +298,7 @@ function urls(guid) {
 
 module.exports = {
   validate,
+  cleanKey,
   discoverCdnHostname,
   hostnameFromThumbnail,
   createVideo,
