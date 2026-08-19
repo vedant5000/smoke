@@ -4,8 +4,7 @@
   "description": "Smoke - screen and camera recorder that publishes straight to Bunny.net Stream",
   "main": "main/main.js",
   "author": "SXV Digital",
-  "license": "UNLICENSED",
-  "private": true,
+  "license": "MIT",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",

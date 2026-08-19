@@ -4,9 +4,10 @@ macOS menubar screen and camera recorder. Records, edits in a Studio window,
 publishes to Bunny.net Stream, returns a share link. Electron, no build step
 for the renderer, plain HTML/CSS/JS.
 
-**`README.md` is the source of truth.** It documents every hard won gotcha in
-this codebase. Read the relevant section before changing anything in that area,
-because most of the non obvious code is non obvious for a recorded reason.
+**`docs/internals.md` is the source of truth.** It documents every hard won
+gotcha in this codebase. Read the relevant section before changing anything in
+that area, because most of the non obvious code is non obvious for a recorded
+reason. `README.md` is the public front page and stays short.
 
 ## Layout
 
@@ -23,6 +24,7 @@ because most of the non obvious code is non obvious for a recorded reason.
 | `renderer/layouts.js` | shared by the canvas preview AND main/render.js |
 | `preload/bridge.js` | the only renderer to main surface |
 | `extension/` | Chrome MV3 extension for true single tab capture |
+| `docs/screenshots/` | the composed README images and the scripts that build them |
 
 ## Running it
 
@@ -68,4 +70,12 @@ must never be written into any bundle.
 - Progress sent to a destroyed Studio window throws. Everything goes through
   `safeSend()`.
 
-Full list, with the reasoning, is in `README.md`.
+Full list, with the reasoning, is in `docs/internals.md`.
+
+## Screenshots
+
+`docs/screenshots/shoot.sh` and `make-gif.py` rebuild the README images. They
+render the real renderer pages in headless Chrome with a mock bridge, never a
+screen capture, because Smoke's windows are invisible to capture and a real
+desktop must not end up in a public repo. Read `docs/screenshots/README.md`
+before touching them.

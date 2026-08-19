@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>camera stand-in</title>
+<style>
+  /* An illustrated stand-in for the camera feed. Deliberately not a photograph
+     of anyone: the screenshots need something in the bubble, and a drawing is
+     honest about being a placeholder. */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 720px; height: 720px; overflow: hidden; }
+  body {
+    background:
+      radial-gradient(520px 420px at 62% 22%, #4b4136 0%, transparent 62%),
+      linear-gradient(168deg, #2a2620 0%, #1b1916 55%, #131211 100%);
+  }
+  .room {                       /* a soft out-of-focus lamp behind the shoulder */
+    position: absolute; right: 96px; top: 88px; width: 168px; height: 168px;
+    border-radius: 50%; background: radial-gradient(circle, rgba(243,179,74,.5), transparent 68%);
+    filter: blur(26px);
+  }
+  .shelf {
+    position: absolute; left: 64px; top: 236px; width: 176px; height: 9px;
+    border-radius: 4px; background: rgba(255,255,255,.07); filter: blur(3px);
+  }
+  svg { position: absolute; inset: 0; width: 720px; height: 720px; }
+</style>
+</head>
+<body>
+  <div class="room"></div>
+  <div class="shelf"></div>
+  <svg viewBox="0 0 720 720">
+    <defs>
+      <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#c99a75"/><stop offset="100%" stop-color="#a87a58"/>
+      </linearGradient>
+      <linearGradient id="top" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#3d4a6b"/><stop offset="100%" stop-color="#2b3450"/>
+      </linearGradient>
+      <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#33291f"/><stop offset="100%" stop-color="#1e1813"/>
+      </linearGradient>
+    </defs>
+
+    <!-- shoulders -->
+    <path d="M150 720 C158 596 236 536 360 536 C484 536 562 596 570 720 Z" fill="url(#top)"/>
+    <path d="M360 536 C330 560 318 596 316 640 L404 640 C402 596 390 560 360 536 Z"
+          fill="#1f2740" opacity=".55"/>
+    <!-- neck -->
+    <path d="M318 470 h84 v70 c-20 14 -64 14 -84 0 Z" fill="#a87458"/>
+    <!-- head -->
+    <ellipse cx="360" cy="368" rx="104" ry="122" fill="url(#skin)"/>
+    <!-- hair -->
+    <path d="M256 372 C250 268 300 226 360 226 C420 226 470 268 464 372
+             C452 320 430 296 396 288 C368 282 330 288 306 306 C284 322 266 342 256 372 Z"
+          fill="url(#hair)"/>
+    <!-- brows + eyes, just enough to read as a face at bubble size -->
+    <rect x="302" y="350" width="42" height="7" rx="3.5" fill="#2b2118" opacity=".8"/>
+    <rect x="376" y="350" width="42" height="7" rx="3.5" fill="#2b2118" opacity=".8"/>
+    <ellipse cx="323" cy="378" rx="12" ry="9" fill="#2f2419"/>
+    <ellipse cx="397" cy="378" rx="12" ry="9" fill="#2f2419"/>
+    <!-- nose + mouth -->
+    <path d="M360 392 v22 c0 6 -6 9 -12 10" stroke="#8f6247" stroke-width="5"
+          fill="none" stroke-linecap="round"/>
+    <path d="M334 446 C346 458 374 458 386 446" stroke="#7d4f3c" stroke-width="6"
+          fill="none" stroke-linecap="round"/>
+    <!-- headphone band, sells "recording a walkthrough" -->
+    <path d="M252 372 C252 250 468 250 468 372" stroke="#171a22" stroke-width="15" fill="none" stroke-linecap="round"/>
+    <rect x="234" y="356" width="34" height="62" rx="16" fill="#1d212b"/>
+    <rect x="452" y="356" width="34" height="62" rx="16" fill="#1d212b"/>
+  </svg>
+</body>
+</html>

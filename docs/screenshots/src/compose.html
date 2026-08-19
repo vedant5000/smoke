@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>compose</title>
+<style>
+  /* Lays the real Smoke windows over the synthetic desktop.
+     Each window is an iframe at its exact real pixel size, because Chrome
+     enforces a minimum window width and screenshotting a 392px page directly
+     lays it out wider and crops it. */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+  iframe { border: 0; display: block; }
+  #desk { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+
+  .win { position: absolute; }
+  /* the real windows are transparent with their own rounded corners, so the
+     shadow has to sit on the frame, not on a rectangle behind it */
+  .win.shadow { filter: drop-shadow(0 30px 70px rgba(0,0,0,.75)) drop-shadow(0 4px 14px rgba(0,0,0,.5)); }
+
+  /* recorder panel: bottom centre, same offset the app uses */
+  #control { width: 392px; height: 624px; left: 764px; top: 376px; }
+  /* recording bar: bottom centre, 28px up */
+  #recbar  { width: 372px; height: 60px;  left: 774px; top: 992px; }
+  /* camera bubble: lower left, includes its 14px shadow margin each side */
+  #camera  { width: 248px; height: 248px; left: 96px;  top: 736px; }
+  /* setup + studio are centred */
+  #setup   { width: 440px; height: 610px; left: 740px; top: 235px; }
+  #studio  { width: 1280px; height: 820px; left: 320px; top: 130px; }
+  #countdown { width: 300px; height: 300px; left: 810px; top: 390px; }
+</style>
+</head>
+<body>
+  <iframe id="desk" src="desktop.html" scrolling="no"></iframe>
+  <script>
+    const q = new URLSearchParams(location.search);
+    const shot = q.get('shot') || 'recorder';
+
+    /* which windows each shot shows, in stacking order */
+    const SHOTS = {
+      recorder:  [['control', 'control.html']],
+      recording: [['recbar', 'recbar.html?demo=1&elapsed=47000'], ['camera', 'camera.html?demo=1']],
+      setup:     [['setup',  'setup.html?unconfigured=1']],
+      studio:    [['studio', 'studio.html?demo=1']],
+      publish:   [['studio', 'studio.html?demo=1&publish=1']],
+      countdown: [['recbar', 'recbar.html?demo=1&elapsed=0'], ['camera', 'camera.html?demo=1'],
+                  ['countdown', 'countdown.html?demo=1']],
+    };
+
+    const R = q.get('renderer') || 'renderer';
+    /* the gif steps the clock, so pass those through to the child pages */
+    const pass = (page) => {
+      let out = page;
+      if (q.has('elapsed') && page.startsWith('recbar')) out = out.replace(/elapsed=\d+/, 'elapsed=' + q.get('elapsed'));
+      if (q.has('count')  && page.startsWith('countdown')) out += '&count=' + q.get('count');
+      return out;
+    };
+
+    for (const [id, page0] of (SHOTS[shot] || SHOTS.recorder)) {
+      const page = pass(page0);
+      const f = document.createElement('iframe');
+      f.id = id;
+      f.className = 'win shadow';
+      f.setAttribute('scrolling', 'no');
+      f.src = `${R}/${page}`;
+      document.body.appendChild(f);
+    }
+  </script>
+</body>
+</html>

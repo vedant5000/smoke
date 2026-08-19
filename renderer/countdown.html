@@ -23,7 +23,13 @@
   .bg { stroke: rgba(255, 255, 255, .07); }
   .fg { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
 
+  /* The ring is an absolutely positioned sibling, so it paints ABOVE this
+     in-flow number. It is transparent, so the digit normally shows through,
+     but that is relying on luck: give the number its own positioned layer and
+     the paint order stops mattering. Without this the digit can vanish behind
+     the ring entirely. */
   #n {
+    position: relative; z-index: 1;
     font-size: 74px; font-weight: 700; color: var(--ink);
     font-variant-numeric: tabular-nums; line-height: 1;
   }

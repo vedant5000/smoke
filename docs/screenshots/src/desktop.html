@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>backdrop</title>
+<style>
+  /* A synthetic desktop. Everything the screenshots show being "recorded" is
+     drawn here, so no part of anyone's real screen ends up in the repo. */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; }
+  body {
+    font-family: "SF Pro Display", -apple-system, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(1200px 800px at 22% 18%, #2b3f6b 0%, transparent 60%),
+      radial-gradient(1000px 700px at 82% 76%, #6d3f6b 0%, transparent 62%),
+      linear-gradient(160deg, #0d1120 0%, #141a2e 48%, #0b0e18 100%);
+    color: #fff;
+  }
+
+  /* ---- menubar ---- */
+  .menubar {
+    position: absolute; top: 0; left: 0; right: 0; height: 26px;
+    background: rgba(12, 14, 22, .55); backdrop-filter: blur(20px);
+    display: flex; align-items: center; gap: 18px; padding: 0 14px;
+    font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,.9);
+  }
+  .menubar .apple { font-size: 14px; opacity: .95; }
+  .menubar .app { font-weight: 700; }
+  .menubar .right { margin-left: auto; display: flex; align-items: center; gap: 14px; opacity: .85; }
+  .menubar .mark { width: 15px; height: 15px; border-radius: 4px; background: #f7efea; display: grid; place-items: center; }
+  .menubar .mark img { width: 11px; height: 11px; }
+
+  /* ---- app window being recorded ---- */
+  .win {
+    position: absolute; left: 236px; top: 96px; width: 1448px; height: 872px;
+    background: #10131c; border-radius: 12px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,.09);
+    box-shadow: 0 50px 120px -20px rgba(0,0,0,.8), 0 0 0 .5px rgba(255,255,255,.05);
+    display: flex; flex-direction: column;
+  }
+  .titlebar {
+    height: 40px; flex: none; display: flex; align-items: center; gap: 8px;
+    padding: 0 14px; background: #171b26; border-bottom: 1px solid rgba(255,255,255,.07);
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dot.r { background: #ff5f57; } .dot.y { background: #febc2e; } .dot.g { background: #28c840; }
+  .titlebar .name { margin-left: 10px; font-size: 12.5px; font-weight: 600; color: #aeb6c6; }
+
+  .content { flex: 1; display: flex; min-height: 0; }
+
+  /* sidebar */
+  .side { width: 210px; flex: none; background: #0d1017; border-right: 1px solid rgba(255,255,255,.06); padding: 16px 12px; }
+  .side .grp { font-size: 10px; font-weight: 700; letter-spacing: .09em; color: #4d5566; margin: 0 0 9px 8px; }
+  .side .item { display: flex; align-items: center; gap: 9px; padding: 8px 9px; border-radius: 7px; font-size: 12.5px; color: #8e97a8; margin-bottom: 2px; }
+  .side .item.on { background: rgba(109,123,255,.16); color: #fff; font-weight: 600; }
+  .side .ico { width: 15px; height: 15px; border-radius: 4px; background: #2a3040; flex: none; }
+  .side .item.on .ico { background: #6d7bff; }
+
+  /* main */
+  .main { flex: 1; padding: 22px 26px; overflow: hidden; }
+  .h1 { font-size: 21px; font-weight: 680; letter-spacing: -.01em; margin-bottom: 3px; }
+  .sub { font-size: 12.5px; color: #798294; margin-bottom: 20px; }
+
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 13px; margin-bottom: 22px; }
+  .card { background: #151a25; border: 1px solid rgba(255,255,255,.06); border-radius: 10px; padding: 14px 15px; }
+  .card .k { font-size: 10.5px; font-weight: 600; letter-spacing: .05em; color: #6c7488; margin-bottom: 8px; }
+  .card .v { font-size: 25px; font-weight: 700; letter-spacing: -.02em; }
+  .card .d { font-size: 11px; font-weight: 600; margin-top: 5px; }
+  .up { color: #35d69b; } .down { color: #ff5a5f; }
+
+  /* chart */
+  .panel { background: #151a25; border: 1px solid rgba(255,255,255,.06); border-radius: 10px; padding: 18px 20px; }
+  .panel .ph { display: flex; align-items: center; margin-bottom: 16px; }
+  .panel .pt { font-size: 14px; font-weight: 640; }
+  .panel .pill { margin-left: auto; font-size: 10.5px; font-weight: 600; color: #8e97a8; background: #1e2534; border-radius: 20px; padding: 4px 11px; }
+  svg { display: block; width: 100%; height: 250px; }
+</style>
+</head>
+<body>
+
+  <div class="menubar">
+    <span class="apple">&#63743;</span>
+    <span class="app">Northwind</span>
+    <span>File</span><span>Edit</span><span>View</span><span>Window</span><span>Help</span>
+    <span class="right">
+      <span class="mark"><img src="../../../assets/mark-black.png" alt=""></span>
+      <span>100%</span>
+      <span>Tue 9:41</span>
+    </span>
+  </div>
+
+  <div class="win">
+    <div class="titlebar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="name">Northwind &#8212; Revenue</span>
+    </div>
+    <div class="content">
+      <div class="side">
+        <div class="grp">WORKSPACE</div>
+        <div class="item on"><span class="ico"></span>Overview</div>
+        <div class="item"><span class="ico"></span>Revenue</div>
+        <div class="item"><span class="ico"></span>Customers</div>
+        <div class="item"><span class="ico"></span>Retention</div>
+        <div class="grp" style="margin-top:20px">REPORTS</div>
+        <div class="item"><span class="ico"></span>Weekly</div>
+        <div class="item"><span class="ico"></span>Cohorts</div>
+        <div class="item"><span class="ico"></span>Forecast</div>
+      </div>
+
+      <div class="main">
+        <div class="h1">Q3 performance</div>
+        <div class="sub" style="color:#798294">Updated 4 minutes ago</div>
+
+        <div class="cards">
+          <div class="card"><div class="k">MRR</div><div class="v">$248,910</div><div class="d up">&#9650; 12.4%</div></div>
+          <div class="card"><div class="k">NEW CUSTOMERS</div><div class="v">1,284</div><div class="d up">&#9650; 8.1%</div></div>
+          <div class="card"><div class="k">CHURN</div><div class="v">2.3%</div><div class="d down">&#9660; 0.4%</div></div>
+          <div class="card"><div class="k">LTV</div><div class="v">$4,120</div><div class="d up">&#9650; 3.7%</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="ph"><span class="pt">Revenue by month</span><span class="pill">Last 12 months</span></div>
+          <svg viewBox="0 0 1000 250" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#6d7bff" stop-opacity=".42"/>
+                <stop offset="100%" stop-color="#6d7bff" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <g stroke="rgba(255,255,255,.055)" stroke-width="1">
+              <line x1="0" y1="50" x2="1000" y2="50"/>
+              <line x1="0" y1="110" x2="1000" y2="110"/>
+              <line x1="0" y1="170" x2="1000" y2="170"/>
+              <line x1="0" y1="230" x2="1000" y2="230"/>
+            </g>
+            <path d="M0,205 L90,190 L180,196 L270,160 L360,168 L450,128 L540,140 L630,96 L720,104 L810,66 L900,74 L1000,34 L1000,250 L0,250 Z" fill="url(#fill)"/>
+            <path d="M0,205 L90,190 L180,196 L270,160 L360,168 L450,128 L540,140 L630,96 L720,104 L810,66 L900,74 L1000,34"
+                  fill="none" stroke="#6d7bff" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <circle cx="1000" cy="34" r="5" fill="#6d7bff" stroke="#151a25" stroke-width="3"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

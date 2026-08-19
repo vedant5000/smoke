@@ -171,7 +171,7 @@ async function validate({ libraryId, apiKey }) {
   const id = String(libraryId || '').trim();
   const key = String(apiKey || '').trim();
   if (!id) return { ok: false, error: 'Enter your library ID.' };
-  if (!/^\d+$/.test(id)) return { ok: false, error: 'The library ID should be numbers only, like 717099.' };
+  if (!/^\d+$/.test(id)) return { ok: false, error: 'The library ID should be numbers only, like 123456.' };
   if (!key) return { ok: false, error: 'Enter your Stream API key.' };
 
   try {

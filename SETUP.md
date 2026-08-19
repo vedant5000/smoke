@@ -66,7 +66,7 @@ clock. There is no Dock icon and no window until you click it.
 
 On first launch it asks for two values:
 
-- **Video library ID**, a number like `717099`
+- **Video library ID**, a number like `123456`
 - **Stream API key**
 
 Both are on one page. Go to [dash.bunny.net](https://dash.bunny.net), open
@@ -117,7 +117,8 @@ Click the menubar mark to open the recorder panel.
   and backgrounds
 - Publish uploads to Bunny and copies the share link to your clipboard
 
-Full feature detail is in `README.md`.
+Full feature detail is in the [README](README.md), and the engineering
+detail is in [docs/internals.md](docs/internals.md).
 
 ---
 
