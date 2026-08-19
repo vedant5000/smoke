@@ -265,7 +265,23 @@ async function boot() {
     $('#libtext').textContent = 'Bunny not set up';
   }
 
-  await loadDevices();
+  applyMode();
+
+  /* Deliberately NOT loading devices or sources here. Reading the camera and
+     microphone labels opens both, and listing sources touches screen capture,
+     so doing it at boot makes macOS ask for all three permissions every single
+     launch, for a recording nobody has asked for yet. The panel is created
+     hidden at startup, so wait until it is actually opened. */
+  if (panelVisible) await openPanel();
+}
+
+let panelVisible = false;
+let devicesLoaded = false;
+
+/* Everything that needs a permission lives behind this, and it only runs when
+   the panel is on screen. */
+async function openPanel() {
+  if (!devicesLoaded) { devicesLoaded = true; await loadDevices(); }
   await loadSources();
   await checkPerms();
   applyMode();
@@ -522,8 +538,13 @@ function refreshBubble() {
     /* The panel keeps running while hidden so it can drive the recorder, but
        the bubble should only be on screen while you are setting up a take or
        actually recording. Otherwise it floats there the whole time the app is
-       open, and it holds the camera. */
-    const visible = document.visibilityState === 'visible';
+       open, and it holds the camera.
+
+       panelVisible comes from main. document.visibilityState CANNOT be used
+       here: an Electron window that was never shown still reports "visible",
+       so this test was always true and the bubble opened the camera at every
+       launch. */
+    const visible = panelVisible;
     if (state.camOn && state.cameraId && (visible || engine.recording)) {
       await cue.camShow({ size: 220, shape: 'circle', deviceId: state.cameraId, mode: state.camMode });
     } else {
@@ -531,7 +552,8 @@ function refreshBubble() {
     }
   }, 120);
 }
-document.addEventListener('visibilitychange', refreshBubble);
+/* No visibilitychange listener: Electron never fires it for a window that is
+   shown or hidden, which is why main sends control-shown / control-hidden. */
 
 /* ---------- start ---------- */
 $('#start').onclick = async () => {
@@ -549,7 +571,8 @@ $('#start').onclick = async () => {
   btn.disabled = false;
 };
 
-cue.onControlShown(() => { loadSources(); checkPerms(); });
+cue.onControlShown(() => { panelVisible = true; openPanel(); });
+cue.onControlHidden(() => { panelVisible = false; refreshBubble(); });
 cue.onRecAction((action) => engine.handleAction(action));
 
 boot();

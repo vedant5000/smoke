@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('cue', {
   onRecState: on('rec-state'),
   onRecAction: on('rec-action'),
   onControlShown: on('control-shown'),
+  onControlHidden: on('control-hidden'),
   onCountdownStart: on('countdown-start'),
 
   /* studio */

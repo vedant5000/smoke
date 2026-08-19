@@ -250,7 +250,7 @@ function wireIpc() {
       await new Promise((r) => setTimeout(r, opts.countdown * 1000 + 150));
       W.hideCountdown();
     }
-    if (W.wins.control && !W.wins.control.isDestroyed()) W.wins.control.hide();
+    W.hideControl();
     const bar = W.createRecbar();
     const push = () => bar.webContents.send('rec-config', {
       mode: s.mode,
@@ -461,9 +461,7 @@ function wireIpc() {
     if (w && !w.isDestroyed()) w.hide();
   });
 
-  ipcMain.on('win:hide-control', () => {
-    if (W.wins.control && !W.wins.control.isDestroyed()) W.wins.control.hide();
-  });
+  ipcMain.on('win:hide-control', () => W.hideControl());
 
   ipcMain.on('control:show', () => showControl());
 
@@ -574,7 +572,7 @@ function makeTray() {
     /* Nothing else in this app works without credentials, so an unconfigured
        click goes to setup instead of a panel whose publish button would fail. */
     if (!config.bunnyConfigured()) return W.showSetup();
-    if (W.wins.control && !W.wins.control.isDestroyed() && W.wins.control.isVisible()) W.wins.control.hide();
+    if (W.wins.control && !W.wins.control.isDestroyed() && W.wins.control.isVisible()) W.hideControl();
     else showControl();
   });
   tray.on('right-click', () => tray.popUpContextMenu(trayMenu));

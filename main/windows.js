@@ -136,7 +136,20 @@ function showControl() {
   });
   w.show();
   w.focus();
-  w.webContents.send('control-shown');
+  /* The panel only touches the camera, the microphone and the screen list once
+     it is actually on screen, so this message is what starts all of that. If it
+     is sent while the page is still loading nobody is listening yet and the
+     panel comes up empty, so wait for the load when there is one. */
+  const tell = () => { if (!w.isDestroyed()) w.webContents.send('control-shown'); };
+  if (w.webContents.isLoading()) w.webContents.once('did-finish-load', tell);
+  else tell();
+}
+
+function hideControl() {
+  const w = wins.control;
+  if (!w || w.isDestroyed() || !w.isVisible()) return;
+  w.webContents.send('control-hidden');
+  w.hide();
 }
 
 /* ---------------- recording bar ---------------- */
@@ -379,7 +392,7 @@ module.exports = {
   CAM_MARGIN,
   displayForCursor,
   createSetup, showSetup, destroySetup,
-  createControl, showControl,
+  createControl, showControl, hideControl,
   createRecbar,
   createCamera, setCameraProtection, setCameraSize,
   startCameraResize, stopCameraResize, destroyCamera,
