@@ -59,7 +59,11 @@ async function connect() {
   if (!res.ok) {
     busy(false);
     status('err', res.error);
-    if (/library ID should be numbers|Enter your library/i.test(res.error)) els.lib.classList.add('bad');
+    /* Point at the box that is actually wrong. validate() works out which one
+       it is, so trust its verdict rather than re-reading the message here. */
+    if (res.kind === 'account-key') els.key.classList.add('bad');
+    else if (res.kind === 'wrong-library') { els.lib.classList.add('bad'); els.key.classList.add('bad'); }
+    else if (/library ID should be numbers|Enter your library/i.test(res.error)) els.lib.classList.add('bad');
     else if (/Enter your Stream API key/i.test(res.error)) els.key.classList.add('bad');
     else { els.lib.classList.add('bad'); els.key.classList.add('bad'); }
     return;

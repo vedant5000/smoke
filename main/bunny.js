@@ -162,6 +162,39 @@ async function waitUntilPlayable(guid, { timeoutMs = 10 * 60 * 1000, onTick } = 
   );
 }
 
+/* Bunny has two different APIs with two different kinds of key, and mixing
+   them up is the single most common setup mistake. A stream key works on
+   video.bunnycdn.com and is rejected by api.bunny.net; an account key is the
+   exact opposite. Asking api.bunny.net therefore tells us which one we were
+   handed, so the error can name the actual problem instead of shrugging.
+
+   The key is used for this one request and never stored. */
+function probeAccountKey(apiKey) {
+  return new Promise((resolve) => {
+    const req = https.request({
+      host: 'api.bunny.net',
+      path: '/videolibrary?page=1&perPage=100',
+      method: 'GET',
+      timeout: 12_000,
+      headers: { AccessKey: apiKey, accept: 'application/json' },
+    }, (res) => {
+      let data = '';
+      res.on('data', (c) => { data += c; });
+      res.on('end', () => {
+        if (res.statusCode !== 200) return resolve(null);
+        try {
+          const parsed = JSON.parse(data);
+          const items = Array.isArray(parsed) ? parsed : (parsed.Items || []);
+          resolve(items.map((x) => ({ id: x.Id, name: x.Name })));
+        } catch (_) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.end();
+  });
+}
+
 /* ---------------- credential setup ----------------
    Used by the first run screen, before these credentials are adopted as the
    app's own. GET /library/{id} is the cheapest call that proves both the
@@ -179,13 +212,36 @@ async function validate({ libraryId, apiKey }) {
     return { ok: true, videoCount: info.videoCount || 0 };
   } catch (e) {
     const msg = String(e.message || '');
-    /* Bunny answers 401 both for a bad key AND for a key that belongs to a
-       different library, so the message must not blame one field: pointing at
-       the key alone sends people hunting through the wrong box. */
+    /* Bunny answers 401 for a bad key, for the wrong kind of key, AND for a
+       key belonging to a different library or a different account. Guessing
+       between those sends people hunting through the wrong box, so ask which
+       it actually is before writing the message. */
     if (msg.includes('(401)') || msg.includes('(403)') || msg.includes('(404)')) {
+      const libraries = await probeAccountKey(key);
+
+      if (libraries) {
+        /* It authenticated against the account API, so this is an account key,
+           not a library key. We know their real libraries now, so say so. */
+        const mine = libraries.find((l) => String(l.id) === id);
+        const list = libraries.length
+          ? libraries.map((l) => `${l.id} (${l.name})`).join(', ')
+          : 'none yet';
+        return {
+          ok: false,
+          error: mine
+            ? `That is your account API key, not the library key. Open library ${id} "${mine.name}" in the Bunny dashboard, go to its API tab, and copy the key shown there instead.`
+            : `That is your account API key, not a library key, and this account has no library ${id}. Your libraries are: ${list}. Open the one you want, go to its API tab, and copy its ID and key from there.`,
+          kind: 'account-key',
+        };
+      }
+
+      /* A real library key, just not one that can reach this library. Almost
+         always a library ID from one Bunny account paired with a key from
+         another, which is what happens when two people share half of each. */
       return {
         ok: false,
-        error: `Bunny would not accept library ${id} with that key. They have to be from the same library: open it in the Bunny dashboard, go to API, and copy both values from that page.`,
+        error: `That key is not valid for library ${id}. A library key only works on the library it came from, and only on that Bunny account. If somebody shared this library with you, you need the key from THEIR dashboard. If you meant to use your own library, change the ID above to yours.`,
+        kind: 'wrong-library',
       };
     }
     if (/did not respond|ENOTFOUND|ECONNREFUSED|ETIMEDOUT/i.test(msg)) {
