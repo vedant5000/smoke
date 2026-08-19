@@ -416,22 +416,43 @@ function wireIpc() {
     send('uploading', { pct: 0, guid });
     await bunny.uploadVideo(guid, file, ({ pct, sent, total }) => send('uploading', { pct, sent, total, guid }));
 
-    send('encoding', { pct: 0, guid });
-    const video = await bunny.waitUntilPlayable(guid, {
-      onTick: ({ encodeProgress }) => send('encoding', { pct: encodeProgress || 0, guid }),
-    });
+    /* The share URL is built from the library id and the guid, and both are
+       known the moment the upload lands. Hand it over NOW rather than at the
+       end of encoding. Bunny routinely spends many minutes on a clip that took
+       one second to upload, and making someone watch a progress bar for a link
+       that already exists is what makes publishing feel broken. */
+    const links = bunny.urls(guid);
+    send('uploaded', { pct: 100, guid, links });
 
-    /* An empty library has no video to read the pull zone hostname off, so the
-       first publish is the earliest moment it can be learned. Do it here and
-       the direct MP4 link is available from the second recording onwards. */
-    if (!config.bunny.cdnHostname && video && video.thumbnailUrl) {
-      const host = bunny.hostnameFromThumbnail(video.thumbnailUrl);
-      if (host && config.rememberCdnHostname(host)) console.log('[smoke] learned CDN hostname:', host);
+    send('encoding', { pct: 0, guid, links });
+    let encoded = false;
+    try {
+      const video = await bunny.waitUntilPlayable(guid, {
+        /* Encoding is Bunny's queue, not ours, and a busy queue can sit on a
+           short clip for a quarter of an hour. Waiting longer costs nothing now
+           that the link is already in the user's hands. */
+        timeoutMs: 30 * 60 * 1000,
+        onTick: ({ encodeProgress }) => send('encoding', { pct: encodeProgress || 0, guid, links }),
+      });
+      encoded = true;
+
+      /* An empty library has no video to read the pull zone hostname off, so the
+         first publish is the earliest moment it can be learned. Do it here and
+         the direct MP4 link is available from the second recording onwards. */
+      if (!config.bunny.cdnHostname && video && video.thumbnailUrl) {
+        const host = bunny.hostnameFromThumbnail(video.thumbnailUrl);
+        if (host && config.rememberCdnHostname(host)) console.log('[smoke] learned CDN hostname:', host);
+      }
+      send('done', { pct: 100, guid, links: bunny.urls(guid) });
+    } catch (err) {
+      /* Slow encoding is not a failed publish. The file is on Bunny and the
+         link is real, so report the wait instead of throwing away a good link
+         and telling someone their recording failed. */
+      console.warn('[smoke] still encoding after the wait:', err.message);
+      send('slow', { pct: 100, guid, links, message: err.message });
     }
 
-    const links = bunny.urls(guid);
-    send('done', { pct: 100, guid, links });
-    return { guid, links };
+    return { guid, links, encoded };
   });
 
   /* Cue (the notch app) already runs a localhost listener and its teleprompter

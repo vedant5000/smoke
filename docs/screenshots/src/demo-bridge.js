@@ -112,14 +112,22 @@
     reveal: noop,
     saveAs: async () => null,
 
-    publish: async () => ({
-      guid: 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
-      links: {
+    publish: async () => {
+      /* Studio renders the links from the progress stream now, not from this
+         return value, so the mock has to emit the same stages the real handler
+         does or the overlay comes up empty. */
+      const links = {
         share: 'https://iframe.mediadelivery.net/play/123456/a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
         embed: 'https://iframe.mediadelivery.net/embed/123456/a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
         mp4:   'https://vz-example.b-cdn.net/a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d/play_720p.mp4',
-      },
-    }),
+      };
+      const guid = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
+      window.__demoEmit('publish-progress', { stage: 'uploaded', pct: 100, guid, links });
+      if (!q.has('encoding')) {
+        window.__demoEmit('publish-progress', { stage: 'done', pct: 100, guid, links });
+      }
+      return { guid, links, encoded: !q.has('encoding') };
+    },
     onPublishProgress: on('publish-progress'),
     saveBunny: async () => ({ ok: true, videoCount: 0, libraryId: '123456', cdnHostname: 'vz-example.b-cdn.net' }),
     setupDone: noop, setupCancel: noop,

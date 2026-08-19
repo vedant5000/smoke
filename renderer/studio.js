@@ -1654,16 +1654,81 @@ const pub = {
 
 $('#pubClose').onclick = () => pub.close();
 
+/* Rendered as soon as the upload lands, then updated when Bunny finishes.
+   Showing it early is the whole point: the URL is real immediately, and
+   waiting on an encode queue to reveal a link that already works is what made
+   publishing feel broken. */
+let shownLinks = null;
+function showLinks(links, { encoded }) {
+  if (!links || !links.share) return;
+  shownLinks = links;
+
+  /* The direct MP4 link needs the CDN hostname, which is unknown until the
+     library has its first video. Drop the row rather than print "null". */
+  const rows = [
+    ['Share', links.share],
+    ['Embed', links.embed],
+    ['MP4', links.mp4],
+  ].filter(([, url]) => Boolean(url));
+
+  const note = encoded
+    ? '<div class="pubnote ok">Encoded and ready to watch.</div>'
+    : '<div class="pubnote">Link works now. Bunny is still encoding, so the first '
+      + 'few seconds of playback may not be available to viewers yet.</div>';
+
+  $('#pubLinks').classList.remove('hide');
+  $('#pubLinks').innerHTML = rows.map(([lbl, url]) => `
+      <div class="link-row">
+        <span class="lbl">${lbl}</span>
+        <span class="url">${url}</span>
+        <button class="icon-btn" data-copy="${url}" title="Copy">
+          <svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+        </button>
+      </div>`).join('')
+    + note
+    + `<button class="btn primary" id="openShare" style="margin-top:4px">Open the share page</button>`;
+
+  $$('#pubLinks [data-copy]').forEach((el) => el.onclick = async () => {
+    await cue.copy(el.dataset.copy);
+    el.classList.add('on');
+    setTimeout(() => el.classList.remove('on'), 900);
+  });
+  $('#openShare').onclick = () => cue.openExternal(links.share);
+
+  // the take is on Bunny, so offer the actual exit rather than just
+  // dismissing the overlay back to an editor you are finished with
+  $('#pubClose').textContent = 'Done, close Studio';
+  $('#pubClose').className = 'btn';
+  $('#pubClose').onclick = closeStudio;
+}
+
 cue.onRenderProgress(({ pct }) => pub.set('Rendering your video', pct * 0.55));
-cue.onPublishProgress(({ stage, pct }) => {
+cue.onPublishProgress(({ stage, pct, links }) => {
   const map = {
-    creating: ['Creating the video on Bunny', 58],
+    creating:  ['Creating the video on Bunny', 58],
     uploading: ['Uploading to Bunny', 60 + (pct || 0) * 0.3],
-    encoding: ['Bunny is encoding', 90 + (pct || 0) * 0.1],
-    done: ['Published', 100],
+    uploaded:  ['Uploaded. Your link is ready', 92],
+    encoding:  ['Bunny is encoding', 92 + (pct || 0) * 0.08],
+    done:      ['Ready to share', 100],
+    slow:      ['Still encoding on Bunny', 100],
   };
   const [label, p] = map[stage] || [stage, 60];
   pub.set(label, p);
+
+  if (stage === 'uploaded') {
+    $('#pubTitle').textContent = 'Link ready';
+    showLinks(links, { encoded: false });
+    cue.copy(links.share);          // same as before: the share URL is on the clipboard
+    pub.stallWatch = false;         // the encode queue is Bunny's, not a stalled transfer
+  }
+  if (stage === 'done') {
+    $('#pubTitle').textContent = 'Published';
+    showLinks(links || shownLinks, { encoded: true });
+  }
+  if (stage === 'slow') {
+    $('#pubTitle').textContent = 'Link ready';
+    showLinks(links || shownLinks, { encoded: false });
+  }
 });
 
 $('#publishBtn').onclick = async () => {
@@ -1684,41 +1749,7 @@ $('#publishBtn').onclick = async () => {
     const title = `Smoke recording ${new Date().toLocaleString()}`;
     const { links } = await cue.publish({ file: spec.out, title });
 
-    $('#pubTitle').textContent = 'Published';
-    pub.set('Ready to share', 100);
-
-    /* The direct MP4 link needs the CDN hostname, which is unknown until the
-       library has its first video. Drop the row rather than print "null". */
-    const rows = [
-      ['Share', links.share],
-      ['Embed', links.embed],
-      ['MP4', links.mp4],
-    ].filter(([, url]) => Boolean(url));
-    $('#pubLinks').classList.remove('hide');
-    $('#pubLinks').innerHTML = rows.map(([lbl, url]) => `
-      <div class="link-row">
-        <span class="lbl">${lbl}</span>
-        <span class="url">${url}</span>
-        <button class="icon-btn" data-copy="${url}" title="Copy">
-          <svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
-        </button>
-      </div>`).join('') +
-      `<button class="btn primary" id="openShare" style="margin-top:4px">Open the share page</button>`;
-
-    $$('#pubLinks [data-copy]').forEach((el) => el.onclick = async () => {
-      await cue.copy(el.dataset.copy);
-      el.classList.add('on');
-      setTimeout(() => el.classList.remove('on'), 900);
-    });
-    $('#openShare').onclick = () => cue.openExternal(links.share);
-
-    // the take is published, so offer the actual exit rather than just
-    // dismissing the overlay back to an editor you are finished with
-    $('#pubClose').textContent = 'Done, close Studio';
-    $('#pubClose').className = 'btn';
-    $('#pubClose').onclick = closeStudio;
-
-    await cue.copy(links.share);
+    // links were already shown the moment the upload landed
     busy = false;
   } catch (e) {
     busy = false;
